@@ -11,6 +11,9 @@
 #define TAG_WIDTH    12; // Bits
 #define OFFSET_WIDTH 2;  // Bits
 #define NUM_CORES    4;
+
+#include "core_sim.h"
+
 typedef enum
 {
 	NoCmd,
@@ -51,6 +54,11 @@ typedef struct
 	int d;
 } register_s;
 
+typedef struct
+{
+	instrc q;
+	instrc d;
+} register_line_s;
 
 typedef struct
 {
@@ -72,5 +80,7 @@ void progress_register_data(register_s* reg);
 cache_addr_s parse_addr(int addr);
 
 void round_robin_arbitrator();
+
+void core();
 
 #endif // SIM_H
