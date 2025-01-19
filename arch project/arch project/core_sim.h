@@ -26,40 +26,36 @@ typedef enum
 // Define enum for opcodes
 typedef enum
 {
-	add  = 0,
-	sub  = 1,
-	mul  = 2,
-	and  = 3,
-	or   = 4,
-	xor  = 5,
-	sll  = 6,
-	sra  = 7,
-	srl  = 8,
-	beq  = 9,
-	bne  = 10,
-	blt  = 11,
-	bgt  = 12,
-	ble  = 13,
-	bge  = 14,
-	jal  = 15,
-	lw   = 16,
-	sw   = 17,
-	reti = 18,
-	in   = 19,
-	out  = 20,
-	halt = 21,
-	fail = -1
+	add = 0,
+	sub = 1,
+	mul = 2,
+	and = 3,
+	or = 4,
+	xor = 5,
+	sll = 6,
+	sra = 7,
+	srl = 8,
+	beq = 9,
+	bne = 10,
+	blt = 11,
+	bgt = 12,
+	ble = 13,
+	bge = 14,
+	jal = 15,
+	lw = 16,
+	sw = 17,
+	halt = 20,
+	stall = -1
 } opcode;
 
-// Define a struct for each line
 typedef struct instrc {
 	opcode opcode;
 	int rd;
 	int rs;
 	int rt;
 	int imm;
-	bool is_i_type;
-} instrc ;
+	int is_i_type;
+} instrc;
 
 const char* get_io_register_name(int reg_number);
 
