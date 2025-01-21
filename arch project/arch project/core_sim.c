@@ -1,5 +1,5 @@
 #include "core_sim.h"
-
+#include "sim.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -425,3 +425,112 @@ void write_reg(int registers[], FILE* regout_pntr)
 		fprintf(regout_pntr, "%08X\n", registers[i]);
 	}
 }
+bus_cmd_s bus;
+
+// Define core
+core_state_t core_state = idle; 
+int core_send_coumter = 0;
+int core_receive_counter = 0;
+int core_req_trans = 0;
+
+// Split bus address to tsram and dsram parameters
+int offset = parse_addr(bus.bus_addr).offset;
+int index = parse_addr(bus.bus_addr).set;
+int tag = parse_addr(bus.bus_addr).tag;
+
+// Define the relevant tsram entry
+tsram_entry entry = tsram[index];
+
+
+// Bus routine
+switch (core_state){
+	case idle:
+		if(gnt = 0 && entry.tag = tag && entry.state =! Invalid) // Check if cache stores the data
+		{
+			if (bus.bus_cmd = kBusRdX || bus.bus_cmd = kBusRd) 
+			{
+				if(entry.state = Modified){ // If the data is modified- send
+					core_state = send ; 
+					core_send_coumter = 0; 
+				}
+				entry.state = (bus.bus_cmd == kBusRd) ? Shared : Invalid  ; // Change entry according to state and bus command
+			}
+			
+		}
+		if(gnt = 1 && core_req_trans = 1) // check for transaction 
+		{
+			if(PrRd = 1 && PrWr = 0)  // If read- set bus_cmd to BusRd
+			{
+				bus.bus_cmd = kBusRd;
+			}
+			elif(PrWr = 1 && PrRd = 0) // If write  - set bus_cmd to BusRdX
+			{
+				bus.bus_cmd = kBusRdX;
+			}
+			else
+			{
+				printf("Transaction is made, but no transaction is required\n")	
+			}
+			core_state = waitForFlash; // A transaction is made, now wait for flash
+		}
+	break;
+
+	case waitForFlash:
+		if(bus.bus_cmd = kFlush)
+		{
+			if(bus.bus_addr = addr)
+			{
+				core_state = receive;
+			}
+
+		}
+}
+{
+case /* constant-expression */:
+	/* code */
+	break;
+
+default:
+	break;
+}
+void trans_passive(){
+	if(gnt = 0){
+		if(entry.tag = tag){
+			if (bus.bus_cmd = kBusRdX)
+			{
+				if(entry.state = Modified){
+					core_state = send ; 
+					bus.bus_cmd = kFlush ; 
+				}
+				entry.state = Invalid ;
+			}
+			
+		}
+		
+			tsram[index].state = Invalid;
+		}	
+		if(bus.)
+			} 
+			bus.bus_cmd = kBusRd || 
+			
+	}
+}
+
+//Function for lw treatment
+int load_word(int adrr)
+{
+	int offset = parse_addr(adrr).offset;
+	int index = parse_addr(adrr).set;
+	int tag = parse_addr(adrr).tag;	
+	if(tsram[index].state != Invalid || dsram[index].tag != tag){ //Check if there is a miss
+		req_out = 1;
+	}	
+	else{
+		int word = dsram[index][offset];
+		return word;
+
+	}
+	return bus;
+}
+
+

@@ -57,6 +57,15 @@ typedef struct instrc {
 	int is_i_type;
 } instrc;
 
+// Define enum for Bus transactions
+typedef enum
+{
+	idle,
+	waitForFlash,
+	send,
+	receive
+} core_state_t;
+
 const char* get_io_register_name(int reg_number);
 
 // Function for getting the signed value of imm in 32 bit
@@ -99,4 +108,12 @@ FILE* open_file(const char* filename, const char* mode);
 
 
 void write_reg(int registers[], FILE* regout_pntr);
+
+
+//==========================================================================
+// Function for handling MESI protocol
+//==========================================================================
+void trans_passive(bus_cmd_s);
+
 #endif 
+
