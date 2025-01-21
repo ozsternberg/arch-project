@@ -432,7 +432,7 @@ core_state_t core_state = idle;
 int core_send_coumter = 0;
 int core_receive_counter = 0;
 int core_req_trans = 0;
-
+trans _state ;
 // Split bus address to tsram and dsram parameters
 int offset = parse_addr(bus.bus_addr).offset;
 int index = parse_addr(bus.bus_addr).set;
@@ -459,13 +459,18 @@ switch (core_state){
 		}
 		if(gnt = 1 && core_req_trans = 1) // check for transaction 
 		{
-			if(PrRd = 1 && PrWr = 0)  // If read- set bus_cmd to BusRd
+			if(state = kRdMiss)  // If read- set bus_cmd to BusRd
 			{
 				bus.bus_cmd = kBusRd;
 			}
-			elif(PrWr = 1 && PrRd = 0) // If write  - set bus_cmd to BusRdX
+			elif(state = kWrMiss) // If write  - set bus_cmd to BusRdX
 			{
 				bus.bus_cmd = kBusRdX;
+			}
+			elif (state = kModifiedMiss) 
+			{
+				bus.bus_cmd = kFlush;
+				bus.bus_data
 			}
 			else
 			{
