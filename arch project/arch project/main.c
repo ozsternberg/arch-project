@@ -9,6 +9,7 @@ bus_state_t bus_state = kBusAvailable;
 bus_cmd_s   bus_req = {0};
 static int         mem_wait_counter = 0;
 static int         mem_rd_counter   = 0;
+static int shared;
 
 // Various flags
 static int progress_clock = 0;
@@ -36,6 +37,7 @@ switch (bus_state)
       bus_state = kBusWaitMem;
       mem_wait_counter = 0;
       gnt = 0;
+      shared = bus_req.bus_share;
     }
 
     else if (bus_req.bus_cmd == kFlush)
@@ -92,6 +94,7 @@ switch (bus_state)
     bus_req.bus_origid = main_mem_id;
     bus_req.bus_data = main_mem[bus_req.bus_addr];
     bus_req.bus_cmd = kFlush; // When returning data the command is flush
+    bus_req.bus_share = shared;
 
     gnt = 0;
     progress_clock = 1;
@@ -103,6 +106,7 @@ switch (bus_state)
     {
       bus_state = kBusAvailable;
       mem_rd_counter = 0;
+      shared = 0;
       break;
     }
 

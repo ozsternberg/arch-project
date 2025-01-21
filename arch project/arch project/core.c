@@ -52,7 +52,7 @@ int core(int **mem, int core_id) {
 	// --------------------- DECODE ---------------------------
 
 	dec_ex.d = decode_line(fe_dec.q, registers);
-	// branch resoloution in decode stage 
+	// branch resoloution in decode stage
 	switch (dec_ex.d.opcode) {
 	case beq:
 		if (registers[dec_ex.d.rs] == registers[dec_ex.d.rt]) {
@@ -85,17 +85,17 @@ int core(int **mem, int core_id) {
 
 	// --------------------- EXECUTE ---------------------------
 
-	ex_mem.d = execute_op(dec_ex.q, registers);
+	ex_mem.d = execute_op(dec_ex.q, registers); //TODO: Need to return also the instrc type sw/lw
 
 	// -------------------- MEMORY -----------------------------
 
 
-	mem_wb.d = handle_memory(ex_mem.q);
+	mem_wb.d = handle_memory(ex_mem.q); // Need to provide the data from ex stage
 
-	// ---------------------- WRIRE BACK -----------------------
+	// ---------------------- WRITE BACK -----------------------
 
 	write_reg(registers, mem_wb.q);
-		
+
 	// ---------------------------------------------------------
 	pc++;
 	clk++;
@@ -110,7 +110,7 @@ int core(int **mem, int core_id) {
 instrc decode_line(const int line_dec, int registers[]) {
 	instrc new_instrc = {
 		stall, // Opcode
-		-1,	  // rd 
+		-1,	  // rd
 		-1,	  // rs
 		-1,	  // rt
 		-1,	  // imm
@@ -134,7 +134,7 @@ instrc decode_line(const int line_dec, int registers[]) {
 	new_instrc.rt = rt;
 	new_instrc.imm = imm;
 
-	// Set a flag if imm is expected to be used 
+	// Set a flag if imm is expected to be used
 	if (new_instrc.rd == 1 || new_instrc.rs == 1 || new_instrc.rt == 1) new_instrc.is_i_type = 1;
 	return  new_instrc;
 }
@@ -255,7 +255,7 @@ void update_mon(int frame_buffer[][monitor_pixel_width], const int pixel_value, 
 		return;
 	}
 
-	// Parse the address to line and pixel offset 
+	// Parse the address to line and pixel offset
 	int line_addr = (unsigned)(monitoraddr & 0xFF00) >> 8;
 	int pixel_offset = monitoraddr & 0x00FF;
 

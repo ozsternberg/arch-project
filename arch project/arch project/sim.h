@@ -2,7 +2,7 @@
 #define SIM_H
 
 #define TSRAM_DEPTH    64
-#define DSRAM_DEPTH    256 
+#define DSRAM_DEPTH    256
 #define DSRAM_WIDTH    32 // Bits
 #define BLOCK_SIZE     4  // Words (32bits)
 #define NUM_OF_REGS    16
@@ -12,7 +12,7 @@
 #define TAG_WIDTH      12 // Bits
 #define OFFSET_WIDTH   2  // Bits
 #define NUM_CORES      4
-#define MEM_RD_LATENCY 16 // Time until memory start returning the data 
+#define MEM_RD_LATENCY 16 // Time until memory start returning the data
 
 #include "core_sim.h"
 
@@ -49,6 +49,20 @@ typedef enum
 	kBusWaitFlush
 } bus_state_t;
 
+typedef enum
+{
+	kRdMiss,
+	kWrMiss,
+	kModifiedMiss,
+	kHit
+}  cache_hit_t;
+
+typedef enum
+{
+	kIdle,
+	kWaitForGnt
+} cache_state_t;
+
 typedef struct
 {
 	bus_origid_t     bus_origid;
@@ -75,7 +89,7 @@ typedef struct
 {
 	int				tag; // Size of 12 bits
 	mesi_state_t	state;
-}   tsram_entry; 
+}   tsram_entry;
 
 typedef struct
 {
