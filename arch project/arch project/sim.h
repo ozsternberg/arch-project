@@ -7,7 +7,7 @@
 #define BLOCK_SIZE     4  // Words (32bits)
 #define NUM_OF_REGS    16
 #define ADDR_WIDTH     20 // Bits (word aligned)
-#define MAIN_MEM_DEPTH 2**20
+#define MAIN_MEM_DEPTH 1 << ADDR_WIDTH
 #define SET_WIDTH      6  // Bits
 #define TAG_WIDTH      12 // Bits
 #define OFFSET_WIDTH   2  // Bits
@@ -50,8 +50,8 @@ typedef enum
 
 typedef struct
 {
-	bus_origid_t bus_origid;
-	bus_cmd_t	   bus_cmd;
+	bus_origid_t     bus_origid;
+	bus_cmd_t	     bus_cmd;
 	int			     bus_addr;
 	int			     bus_data;
 	int			     bus_share;
@@ -91,8 +91,8 @@ cache_addr_s parse_addr(int addr);
 
 int round_robin_arbitrator();
 
-bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd);
+bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd, int progress_clock);
 
-bus_cmd_s cores(bus_cmd_s bus_req, int exclude, int gnt_core_id);
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt_core_id, int progress_clock);
 
 #endif // SIM_H
