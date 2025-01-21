@@ -28,11 +28,21 @@ int round_robin_arbitrator()
 	return curr_r;
 }
 
-void cores(bus_cmd_s bus_req, int exclude, int gnt_core_id)
+bus_cmd_s cores(bus_cmd_s bus_req, int exclude, int gnt_core_id)
 {
+	int core_issued_flush = 0;
+	bus_cmd_s core_cmd;
+	bus_cmd_s core_cmd_rtr;
 	for (int core_id = 0; core_id < NUM_CORES; core_id++) 
   {
 		if (core_id == gnt_core_id && exclude == 1) continue;
-    core(core_id,0,bus_req); 
-  }
+		core_cmd = core(core_id,0,bus_req);
+    if (core_cmd.bus_cmd == kFlush)  // We rely on cores that have modifed data to flush on read - that is the only thing we care about   
+		{
+			if (core_issued_flush) puts("Error - two cores flushed on the same time!");
+			core_issued_flush = 1;
+			core_cmd_rtr = core_cmd;
+		}
+	}
+	return core_cmd_rtr;
 }

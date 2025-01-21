@@ -93,6 +93,6 @@ int round_robin_arbitrator();
 
 bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd);
 
-void cores(bus_cmd_s bus_req, int exclude, int gnt_core_id);
+bus_cmd_s cores(bus_cmd_s bus_req, int exclude, int gnt_core_id);
 
 #endif // SIM_H
