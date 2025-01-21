@@ -1,7 +1,7 @@
 #include "sim.h"
 
 
-void main() 
+void main()
 {
 // Define main mem
 static int  main_mem[MAIN_MEM_DEPTH];
@@ -15,19 +15,21 @@ static int progress_clock = 0;
 static int gnt = 0;
 static bus_origid_t flushing_core_id;
 
-while (1) 
+while (1)
 {
 
-switch (bus_state) 
-{ 
-  case kBusAvailable: 
+switch (bus_state)
+{
+  case kBusAvailable:
     gnt = 1;
     progress_clock = 1;
 
     int gnt_core_id = round_robin_arbitrator;
-    
-    // Check all the cores 
+
+    // Check all the cores
     bus_req = cores(bus_req, gnt ,gnt_core_id, progress_clock);
+
+    if (bus_req.req_enable == 0) break; // If the current core does not have a req we move to the next one
 
     if (bus_req.bus_cmd == kBusRd || bus_req.bus_cmd == kBusRdX)  // We wait for flush from either another core or the memory
     {
@@ -36,6 +38,13 @@ switch (bus_state)
       gnt = 0;
     }
 
+    else if (bus_req.bus_cmd == kFlush)
+    {
+      bus_state = kBusWaitFlush;
+      main_mem[bus_req.bus_addr] = bus_req.bus_data;
+      mem_rd_counter = 1;
+      flushing_core_id = bus_req.bus_origid;
+    }
     break;
 
   case kBusWaitMem:
@@ -46,29 +55,29 @@ switch (bus_state)
     bus_cmd_s core_cmd = cores(bus_req, gnt, gnt_core_id, progress_clock);
 
     // We listen to flush even without a gnt
-    if (core_cmd.bus_cmd == kFlush) // If we see another flush from core while waiting we update the 
+    if (core_cmd.bus_cmd == kFlush) // If we see another flush from core while waiting we update the
     {
       if (core_cmd.bus_addr != bus_req.bus_addr) puts("Error: Flush has been issued from core to an unread addr\n");
 
       gnt = 1;
       progress_clock = 1;
 
-      // Progress the cores and set flushing core as the one with the gnt, also update the bus req 
+      // Progress the cores and set flushing core as the one with the gnt, also update the bus req
       bus_req = cores(bus_req, gnt, core_cmd.bus_origid, progress_clock);
-      
-      if ((int)&bus_req != (int)&core_cmd) printf("bus req and core cmd are not he same!\n"); // Sanity check to see that we get the expected bus cmd 
+
+      if ((int)&bus_req != (int)&core_cmd) printf("bus req and core cmd are not he same!\n"); // Sanity check to see that we get the expected bus cmd
 
       bus_state = kBusWaitFlush; // We wait for all the new data to come from the flushing core
       main_mem[bus_req.bus_addr] = core_cmd.bus_data; //The write to the memory takes place on the same time as the flush arrives
       mem_rd_counter = 1;
-      
+
       flushing_core_id = bus_req.bus_origid;
 
       break;
     }
-      
 
-    if (mem_wait_counter == 15) // Also including zero
+
+    if (mem_wait_counter == MEM_RD_LATENCY - 1) // Also including zero
     {
       bus_state = kBusRead;
       mem_wait_counter = 0;
@@ -90,16 +99,16 @@ switch (bus_state)
     bus_cmd_s core_cmd = cores(bus_req, gnt ,gnt_core_id, progress_clock);
     if ((int)&bus_req != (int)&core_cmd) printf("Error - bus_req should not change when data returns from main mem!\n"); // bus_req should not change when data returns from main mem
 
-    if (mem_rd_counter == BLOCK_SIZE - 1) 
+    if (mem_rd_counter == BLOCK_SIZE - 1)
     {
-      bus_state = kBusAvailable; 
+      bus_state = kBusAvailable;
       mem_rd_counter = 0;
       break;
     }
 
     mem_rd_counter++;
     bus_req.bus_addr = bus_req.bus_addr + 1;
-    break;  
+    break;
 
   case kBusWaitFlush:
     gnt = 1;
@@ -114,9 +123,9 @@ switch (bus_state)
     // Update the main mem
     main_mem[core_cmd.bus_addr] = core_cmd.bus_data;
 
-    if (mem_rd_counter == BLOCK_SIZE - 1) 
+    if (mem_rd_counter == BLOCK_SIZE - 1)
     {
-      bus_state = kBusAvailable; 
+      bus_state = kBusAvailable;
       break;
     }
     mem_rd_counter++;

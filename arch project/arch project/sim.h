@@ -12,6 +12,7 @@
 #define TAG_WIDTH      12 // Bits
 #define OFFSET_WIDTH   2  // Bits
 #define NUM_CORES      4
+#define MEM_RD_LATENCY 16 // Time until memory start returning the data 
 
 #include "core_sim.h"
 
