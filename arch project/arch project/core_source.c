@@ -2,7 +2,7 @@
 #include "core_sim.h"
 
 // The dsram and tsram should be of only once core
-mesi_state_t cache_access(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data,int progress_clk)
+cache_query_rsp_s cache_query(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data,int progress_clk)
 {
     if (op != lw && op != sw) {
         // Handle no sw/lw
@@ -11,7 +11,7 @@ mesi_state_t cache_access(int dsram[][], tsram_entry tsram[], int addr,opcode op
 
     mesi_state_t data_state = tsram[cache_addr.set].state;
     int hit = tsram[cache_addr.set].tag == cache_addr.tag ? 1 : 0;
-
+    int word = 0;
     cache_hit_t hit_type;
 
     if (data_state == Modified && hit == 0)
@@ -23,7 +23,7 @@ mesi_state_t cache_access(int dsram[][], tsram_entry tsram[], int addr,opcode op
     {
         if (hit && data_state != Invalid) // Rd hit
         {
-            int word = dsram[cache_addr.set][cache_addr.offset];
+            word     = dsram[cache_addr.set][cache_addr.offset];
             hit_type = kHit;
         }
 
@@ -52,4 +52,5 @@ mesi_state_t cache_access(int dsram[][], tsram_entry tsram[], int addr,opcode op
         }
     }
 
+    return cache_query_rsp_s cache_query_rsp = {hit_type,word}
 }

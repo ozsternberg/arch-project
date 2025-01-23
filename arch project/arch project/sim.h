@@ -93,11 +93,16 @@ typedef struct
 
 typedef struct
 {
-	int tag;
-	int set;
-	int offset;
+	unsigned int tag;
+	unsigned int set;
+	unsigned int offset;
 }   cache_addr_s ;
 
+typedef struct
+{
+	cache_hit_t  hit_type;
+	unsigned int data;
+} cache_query_rsp_s ;
 
 
 void progress_register_data(register_s* reg);
@@ -109,5 +114,7 @@ int round_robin_arbitrator();
 bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd, int progress_clock);
 
 bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt_core_id, int progress_clock);
+
+cache_query_rsp_s cache_query(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data,int progress_clk);
 
 #endif // SIM_H
