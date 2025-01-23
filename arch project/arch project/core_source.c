@@ -51,6 +51,6 @@ cache_query_rsp_s cache_query(int dsram[][], tsram_entry tsram[], int addr,opcod
             hit_type = kWrMiss;
         }
     }
-
-    return cache_query_rsp_s cache_query_rsp = {hit_type,word}
+    cache_query_rsp_s cache_query_rsp = {hit_type,word};
+    return  cache_query_rsp;
 }
