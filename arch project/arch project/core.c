@@ -51,11 +51,12 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 
 	fe_dec->data_d = &mem[*pc];
 	int next_pc = pc + 1; // default
+	printf("core: %x, FETCH pc: %x", core_id, pc);
 
 	// --------------------- DECODE ---------------------------
 
 	dec_ex->instrc_d = decode_line(fe_dec->data_q, registers);
-
+	printf("core: %x, DECODE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x", core_id, dec_ex->instrc_d.opcode, dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm);
 	opcode opcode = dec_ex->instrc_d.opcode;
 
 	if ((busy_regs[dec_ex->instrc_d.rs] & dec_ex->instrc_d.rs > 1) | 
@@ -63,6 +64,7 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 		dec_ex->instrc_d.opcode = stall; // inject stall to execute
 		next_pc = pc; // decode the same instrc next clk
 		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
+		printf("core: %x, DECODE wait for rd or rs", core_id);
 	};
 
 	if (opcode == beq | opcode == bne | opcode == blt | opcode == bgt | opcode == bge | opcode == ble | opcode == ble) { // branch
@@ -103,6 +105,7 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 				printf("non branch opcode in branch resoulotion: %s", instrct_d.opcode);
 				break;
 			};
+			printf("core: %x, DECODE branch resoulotion next pc: %x", core_id, next_pc);
 		}
 	}
 	else {
@@ -116,14 +119,18 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 		busy_regs[15] = 1;
 	}
 
+	printf("core: %x, DECODE END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x", core_id, dec_ex->instrc_d.opcode, dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm);
 	// --------------------- EXECUTE ---------------------------
 
+	printf("core: %x, EXECUTE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x", core_id, ex_mem->instrc_d.opcode, ex_mem->instrc_d.rd, ex_mem->instrc_d.rs, ex_mem->instrc_d.rt, ex_mem->instrc_d.imm);
 	ex_mem->data_d = execute_op(dec_ex->instrc_q, registers);
 	ex_mem->instrc_d = dec_ex->instrc_q;
+	printf("core: %x, EXECUTE END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, res: %x", core_id, ex_mem->instrc_d.opcode, ex_mem->instrc_d.rd, ex_mem->instrc_d.rs, ex_mem->instrc_d.rt, ex_mem->instrc_d.imm, ex_mem->data_d);
 
 	// -------------------- MEMORY -----------------------------
 	int address = ex_mem->data_q;
 	opcode = ex_mem->instrc_q.opcode;
+	printf("core: %x, MEMORY START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x", core_id, mem_wb->instrc_d.opcode, mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm);
 
 	if ((busy_regs[ex_mem->instrc_q.rd] == 1) & (opcode == sw)) {
 		mem_wb->instrc_d.opcode = stall;
@@ -131,11 +138,13 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
 		dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
 		ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
+		printf("core: %x MEMORY sw wait for rd");
 	}
 
 	mem_rsp_s mem_rsp;
 	mem_rsp = handle_mem(&tsram[core_id], &dsram[core_id], address, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, progress_clk, cache_state, bus, gnt); // Need to provide the data from ex stage
 	mem_wb->instrc_d = ex_mem->instrc_q;
+	mem_wb->data_d = mem_rsp.data;
 	if (mem_rsp.stall == 1) {
 		mem_wb->instrc_d.opcode = stall;
 		next_pc = pc; // decode the same instrc next clk
@@ -143,13 +152,16 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 		dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
 		ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
 	}
-	
+	printf("core: %x, MEMORY END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x", core_id, mem_wb->instrc_d.opcode, mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm);
+
 	// ---------------------- WRITE BACK -----------------------
 
 	int opcode = mem_wb->instrc_q.opcode;
 	if (opcode != stall & opcode != beq & opcode == bne & opcode != blt & opcode != bgt & opcode != bge & opcode != ble & opcode != ble & opcode != sw) { // no branch cmd or sw or stall
 		registers[mem_wb->instrc_q.rd] = mem_wb->data_q;
 		busy_regs[mem_wb->instrc_q.rd] = 0;
+		printf("core: %x, WB address: %x, data: %x", core_id, mem_wb->instrc_q.rd, mem_wb->data_q);
+
 	}
 	if (opcode == jal) {
 		registers[15] = pc + 1;
