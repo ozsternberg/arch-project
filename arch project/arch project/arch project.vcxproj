@@ -127,9 +127,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="core_sim.h" />
     <ClInclude Include="sim.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="core.c" />
+    <ClCompile Include="core_sim.c" />
+    <ClCompile Include="core_source.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="sim.cpp" />
     <ClCompile Include="sim_source.c" />

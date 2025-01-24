@@ -18,6 +18,9 @@
     <ClInclude Include="sim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="core_sim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.c">
@@ -27,6 +30,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sim.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="core.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="core_sim.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="core_source.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

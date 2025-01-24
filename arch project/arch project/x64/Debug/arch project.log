@@ -1,0 +1,11 @@
+﻿  main.c
+  sim_source.c
+  Generating Code...
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\sim.h(118,35): error C2087: 'dsram': missing subscript
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\main.c(70,11): warning C4311: 'type cast': pointer truncation from 'bus_cmd_s *' to 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\main.c(70,28): warning C4311: 'type cast': pointer truncation from 'bus_cmd_s *' to 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\main.c(102,15): error C2374: 'core_cmd': redefinition; multiple initialization
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\main.c(103,9): warning C4311: 'type cast': pointer truncation from 'bus_cmd_s *' to 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\main.c(103,26): warning C4311: 'type cast': pointer truncation from 'bus_cmd_s *' to 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\main.c(28,9): warning C4047: 'initializing': 'int' differs in levels of indirection from 'int (__cdecl *)()'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\sim.h(118,35): error C2087: 'dsram': missing subscript

@@ -1,7 +1,7 @@
 #ifndef SIM_H
 #define SIM_H
 
-#define TSRAM_DEPTH    64
+#define NUM_OF_BLOCKS    64
 #define DSRAM_DEPTH    256
 #define DSRAM_WIDTH    32 // Bits
 #define BLOCK_SIZE     4  // Words (32bits)
@@ -75,14 +75,10 @@ typedef struct
 
 typedef struct
 {
-	int q;
-	int d;
-} register_s;
-
-typedef struct
-{
-	instrc q;
-	instrc d;
+	instrc instrc_d;
+	instrc instrc_q;
+	int data_d;
+	int data_q;
 } register_line_s;
 
 typedef struct
