@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include "sim.h"
 
-int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bus_cmd_s bus, int gnt) {
+bus_cmd_s core(int** mem, int core_id, int progress_clk, bus_cmd_s bus, int gnt) {
 	
 	int static dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
 	tsram_entry static tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
-
+	cache_state_t static cache_state[NUM_CORES];
+	core_state_t core_state[NUM_CORES];
 	// Initialize the required _arrays and variables
 	int static pc_arr[NUM_CORES] = { 0 };
 	int static clk = 0;
@@ -35,7 +36,7 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 		}
 		puts("\n");
 		printf("%05X\n", &mem[*pc]);
-		return EXIT_FAILURE;
+		return;
 	}
 
 #ifdef TIMEOUT_ON
@@ -142,7 +143,7 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 	}
 
 	mem_rsp_s mem_rsp;
-	mem_rsp = handle_mem(&tsram[core_id], &dsram[core_id], address, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, progress_clk, cache_state, bus, gnt); // Need to provide the data from ex stage
+	mem_rsp = handle_mem(tsram[core_id], dsram[core_id], address, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, progress_clk, &cache_state[core_id], &core_state[core_id], bus, gnt); // Need to provide the data from ex stage
 	mem_wb->instrc_d = ex_mem->instrc_q;
 	mem_wb->data_d = mem_rsp.data;
 	if (mem_rsp.stall == 1) {
@@ -171,6 +172,7 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 	// ---------------------------------------------------------
 
 	if (progress_clk == 1) {
+		printf("core: %x, did not progress_clk", core_id);
 		pc = next_pc;
 		clk++;
 		fe_dec->instrc_q = fe_dec->instrc_d;
@@ -181,7 +183,7 @@ int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bu
 		*busy_regs_arr[core_id] = busy_regs;
 	}
 
-	return mem_wb->data_d;
+	return mem_rsp.bus;
 };
 
 instrc decode_line(const int line_dec, int registers[]) {
