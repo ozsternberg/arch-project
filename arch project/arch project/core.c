@@ -3,14 +3,13 @@
 #include <stdlib.h>
 #include "sim.h"
 
-int core(int** mem, int core_id) {
+int core(int** mem, int core_id, int progress_clk, cache_state_t cache_state, bus_cmd_s bus, int gnt) {
 	
 	int static dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
-	tsram_entry static tsram[NUM_CORES][NUM_OF_BLOCKS];
+	tsram_entry static tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
 
 	// Initialize the required _arrays and variables
 	int static pc_arr[NUM_CORES] = { 0 };
-	int static next_pc_arr[NUM_CORES] = { 1 };
 	int static clk = 0;
 	int static registers_arr[NUM_CORES][NUM_OF_REGS];
 	int static busy_regs_arr[NUM_CORES][NUM_OF_REGS] = { 0 };
@@ -19,13 +18,13 @@ int core(int** mem, int core_id) {
 	register_line_s static ex_mem_arr[NUM_CORES];
 	register_line_s static mem_wb_arr[NUM_CORES];
 
-	int pc = pc_arr[core_id];
-	int registers[NUM_OF_REGS] = registers_arr[core_id];
-	int busy_regs[NUM_OF_REGS] = busy_regs_arr[core_id];
-	register_line_s fe_dec = fe_dec_arr[core_id];
-	register_line_s dec_ex = dec_ex_arr[core_id];
-	register_line_s ex_mem = ex_mem_arr[core_id];
-	register_line_s mem_wb = mem_wb_arr[core_id];
+	int *pc = &pc_arr[core_id];
+	int *registers = registers_arr[core_id];
+	int *busy_regs = busy_regs_arr[core_id];
+	register_line_s *fe_dec = &fe_dec_arr[core_id];
+	register_line_s *dec_ex = &dec_ex_arr[core_id];
+	register_line_s *ex_mem = &ex_mem_arr[core_id];
+	register_line_s *mem_wb = &mem_wb_arr[core_id];
 
 	if (pc > 0xFFF)
 	{
@@ -35,7 +34,7 @@ int core(int** mem, int core_id) {
 			printf("%d ", registers[i]);
 		}
 		puts("\n");
-		printf("%05X\n", &mem[pc]);
+		printf("%05X\n", &mem[*pc]);
 		return EXIT_FAILURE;
 	}
 
@@ -50,91 +49,107 @@ int core(int** mem, int core_id) {
 
 	// -------------------- FETCH -----------------------------
 
-	fe_dec.data_d = &mem[pc];
+	fe_dec->data_d = &mem[*pc];
 	int next_pc = pc + 1; // default
 
 	// --------------------- DECODE ---------------------------
 
-	dec_ex.instrc_d = decode_line(fe_dec.data_q, registers);
+	dec_ex->instrc_d = decode_line(fe_dec->data_q, registers);
 
-	opcode opcode = dec_ex.instrc_d.opcode;
+	opcode opcode = dec_ex->instrc_d.opcode;
 
-	if ((busy_regs[dec_ex.instrc_d.rs] & dec_ex.instrc_d.rs > 1) | (busy_regs[dec_ex.instrc_d.rt] & dec_ex.instrc_d.rt > 1) & opcode != jal) { // check rs,rt are valid (if opcode is jal dont need rs,rt)
-		dec_ex.instrc_d.opcode = stall; // inject stall to execute
+	if ((busy_regs[dec_ex->instrc_d.rs] & dec_ex->instrc_d.rs > 1) | 
+		(busy_regs[dec_ex->instrc_d.rt] & dec_ex->instrc_d.rt > 1) & opcode != jal) { // check rs,rt are valid (if opcode is jal dont need rs,rt)
+		dec_ex->instrc_d.opcode = stall; // inject stall to execute
 		next_pc = pc; // decode the same instrc next clk
-		fe_dec.data_d = fe_dec.data_q; // decode the same instrc next clk
+		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
 	};
 
-	if (opcode == beq | opcode == bne | opcode == blt | opcode == bgt | opcode == bge | opcode == ble | opcode == ble) {
-		if (busy_regs[dec_ex.instrc_d.rd] > 1) {
-			// branch resoloution in decode stage
-			instrc instrct_d = dec_ex.instrc_d;
+	if (opcode == beq | opcode == bne | opcode == blt | opcode == bgt | opcode == bge | opcode == ble | opcode == ble) { // branch
+		if (busy_regs[dec_ex->instrc_d.rd] & dec_ex->instrc_d.rd > 1) {
+			dec_ex->instrc_d.opcode = stall; // inject stall to execute
+			next_pc = pc; // decode the same instrc next clk
+			fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
+		}
+		else {
+			// branch resoloution in decode stage (and handle sw)
+			instrc instrct_d = dec_ex->instrc_d;
 			switch (instrct_d.opcode) {
 			case beq:
 				if (registers[instrct_d.rs] == registers[instrct_d.rt]) {
-					next_pc = registers[instrct_d.rd];
+					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
 				};
 			case bne:
 				if (registers[instrct_d.rs] != registers[instrct_d.rt]) {
-					next_pc = registers[instrct_d.rd];
+					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
 				}
 			case blt:
 				if (registers[instrct_d.rs] < registers[instrct_d.rt]) {
-					next_pc = registers[instrct_d.rd];
+					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
 				}
 			case bgt:
 				if (registers[instrct_d.rs] > registers[instrct_d.rt]) {
-					next_pc = registers[instrct_d.rd];
+					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
 				}
 			case ble:
 				if (registers[instrct_d.rs] <= registers[instrct_d.rt]) {
-					next_pc = registers[instrct_d.rd];
+					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
 				}
 			case bge:
 				if (registers[instrct_d.rs] >= registers[instrct_d.rt]) {
-					next_pc = registers[instrct_d.rd];
+					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
 				}
 			default:
 				printf("non branch opcode in branch resoulotion: %s", instrct_d.opcode);
 				break;
 			};
 		}
-		else {
-			dec_ex.instrc_d.opcode = stall; // inject stall to execute
-			next_pc = pc; // decode the same instrc next clk
-			fe_dec.data_d = fe_dec.data_q; // decode the same instrc next clk
-		}
+	}
+	else {
+		if (opcode != jal & opcode != sw) {
+			busy_regs[dec_ex->instrc_d.rd] = 1;
+		};
+	}
 
-		if (opcode == jal & busy_regs[dec_ex.instrc_d.rd] < 2) {
-			next_pc = registers[dec_ex.instrc_d.rd];
-			busy_regs[15] = 1;
-		}
+	if (opcode == jal & busy_regs[dec_ex->instrc_d.rd] < 2) {
+		next_pc = registers[dec_ex->instrc_d.rd];
+		busy_regs[15] = 1;
 	}
 
 	// --------------------- EXECUTE ---------------------------
 
-	ex_mem.data_d = execute_op(dec_ex.instrc_q, registers);
-	ex_mem.instrc_d = dec_ex.instrc_q;
+	ex_mem->data_d = execute_op(dec_ex->instrc_q, registers);
+	ex_mem->instrc_d = dec_ex->instrc_q;
 
 	// -------------------- MEMORY -----------------------------
+	int address = ex_mem->data_q;
+	opcode = ex_mem->instrc_q.opcode;
+
+	if ((busy_regs[ex_mem->instrc_q.rd] == 1) & (opcode == sw)) {
+		mem_wb->instrc_d.opcode = stall;
+		next_pc = pc; // decode the same instrc next clk
+		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
+		dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
+		ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
+	}
 
 	mem_rsp_s mem_rsp;
-	mem_rsp = handle_memory(ex_mem.data_q, ex_mem.instrc_q); // Need to provide the data from ex stage
-	mem_wb.instrc_d = ex_mem.instrc_q;
+	mem_rsp = handle_mem(&tsram[core_id], &dsram[core_id], address, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, progress_clk, cache_state, bus, gnt); // Need to provide the data from ex stage
+	mem_wb->instrc_d = ex_mem->instrc_q;
 	if (mem_rsp.stall == 1) {
-		mem_wb.instrc_d.opcode = stall;
+		mem_wb->instrc_d.opcode = stall;
 		next_pc = pc; // decode the same instrc next clk
-		fe_dec.data_d = fe_dec.data_q; // decode the same instrc next clk
-		dec_ex.instrc_d = dec_ex.instrc_q; // execute the same instrc next clk
-		ex_mem.instrc_d = ex_mem.instrc_q; // handle memory to the same instrc next clk
+		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
+		dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
+		ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
 	}
 	
 	// ---------------------- WRITE BACK -----------------------
 
-	int opcode = mem_wb.instrc_q.opcode;
+	int opcode = mem_wb->instrc_q.opcode;
 	if (opcode != stall & opcode != beq & opcode == bne & opcode != blt & opcode != bgt & opcode != bge & opcode != ble & opcode != ble & opcode != sw) { // no branch cmd or sw or stall
-		registers[mem_wb.instrc_q.rd] = mem_wb.data_q;
-		busy_regs[mem_wb.instrc_q.rd] = 0;
+		registers[mem_wb->instrc_q.rd] = mem_wb->data_q;
+		busy_regs[mem_wb->instrc_q.rd] = 0;
 	}
 	if (opcode == jal) {
 		registers[15] = pc + 1;
@@ -142,14 +157,19 @@ int core(int** mem, int core_id) {
 	}
 	
 	// ---------------------------------------------------------
-	pc = next_pc;
-	clk++;
-	fe_dec.instrc_q = fe_dec.instrc_d;
-	dec_ex.instrc_q = dec_ex.instrc_d;
-	ex_mem.instrc_q = ex_mem.instrc_d;
-	mem_wb.instrc_q = mem_wb.instrc_d;
 
-	return mem_wb.data_d;
+	if (progress_clk == 1) {
+		pc = next_pc;
+		clk++;
+		fe_dec->instrc_q = fe_dec->instrc_d;
+		dec_ex->instrc_q = dec_ex->instrc_d;
+		ex_mem->instrc_q = ex_mem->instrc_d;
+		mem_wb->instrc_q = mem_wb->instrc_d;
+		*registers_arr[core_id] = registers;
+		*busy_regs_arr[core_id] = busy_regs;
+	}
+
+	return mem_wb->data_d;
 };
 
 instrc decode_line(const int line_dec, int registers[]) {
@@ -189,9 +209,9 @@ instrc decode_line(const int line_dec, int registers[]) {
 int execute_op(const instrc instrc, int registers[])
 {
 	// NOTE: This function assumes that $imm has been loaded with the appropriate value
-	int* rd = &registers[instrc.rd];
-	int* rs = &registers[instrc.rs];
-	int* rt = &registers[instrc.rt];
+	int* rd = (instrc.rd  == 1) ? instrc.imm : &registers[instrc.rd];
+	int* rs = (instrc.rd == 1) ? instrc.imm : &registers[instrc.rs];
+	int* rt = (instrc.rd == 1) ? instrc.imm : &registers[instrc.rt];
 
 	switch (instrc.opcode)
 	{
@@ -269,6 +289,7 @@ int get_signed_imm(const int imm) {
 	//return decimal_imm;
 }
 
+/*
 int load_file_into__array(const char* filename, int _array[], const int max_lines, const int is_hex) {
 	FILE* file = fopen(filename, "r");
 	if (!file) {
@@ -428,40 +449,5 @@ void write_reg(int registers[], FILE* regout_pntr)
 		fprintf(regout_pntr, "%08X\n", registers[i]);
 	}
 }
-
-int execute_branch(instrc instrct_d, int **registers, int *reg_15) {
-	int next_pc;
-	switch (instrct_d.opcode) {
-	case beq:
-		if (registers[instrct_d.rs] == registers[instrct_d.rt]) {
-			next_pc = registers[instrct_d.rd];
-		};
-	case bne:
-		if (registers[instrct_d.rs] != registers[instrct_d.rt]) {
-			next_pc = registers[instrct_d.rd];
-		}
-	case blt:
-		if (registers[instrct_d.rs] < registers[instrct_d.rt]) {
-			next_pc = registers[instrct_d.rd];
-		}
-	case bgt:
-		if (registers[instrct_d.rs] > registers[instrct_d.rt]) {
-			next_pc = registers[instrct_d.rd];
-		}
-	case ble:
-		if (registers[instrct_d.rs] <= registers[instrct_d.rt]) {
-			next_pc = registers[instrct_d.rd];
-		}
-	case bge:
-		if (registers[instrct_d.rs] >= registers[instrct_d.rt]) {
-			next_pc = registers[instrct_d.rd];
-		}
-	case jal:
-		next_pc = registers[instrct_d.rd];
-		busy_regs[15] = 1;
-	default:
-		printf("non branch opcode in branch resoulotion: %s", instrct_d.opcode);
-		break;
-	};
-}
+*/
 
