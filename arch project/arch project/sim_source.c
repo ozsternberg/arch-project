@@ -28,13 +28,13 @@ int round_robin_arbitrator()
 	return curr_r;
 }
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt_core_id, int progress_clock)
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_id, int progress_clock)
 {
 	int core_issued_flush = 0;
 	bus_cmd_s core_cmd;
 	bus_cmd_s core_cmd_rtr;
 
-	if (priority_for_gnt == 1) bus_req = core(gnt_core_id, 1, bus_req, progress_clock); // If gnt we give priority to the selected core
+	if (priority_for_gnt == 1) bus_req = core(gnt_core_id, gnt, bus_req, progress_clock); // If gnt we give priority to the selected core
 	core_cmd_rtr = bus_req;
 
 	for (int core_id = 0; core_id < NUM_CORES; core_id++) 

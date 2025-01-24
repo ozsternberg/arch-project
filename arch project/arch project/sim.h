@@ -125,12 +125,12 @@ int round_robin_arbitrator();
 
 bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd, int progress_clock);
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt_core_id, int progress_clock);
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clock);
 
 cache_query_rsp_s cache_query(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data,int progress_clk);
 
 mem_rsp_s handle_mem(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data, int progress_clk, cache_state_t * cache_state, bus_cmd_s bus, int gnt);
 
-bus_routine_rsp_s bus_routine(bus_state_t bus_state, bus_cmd_s bus_req, int mem_wait_counter, int mem_rd_counter, int shared, int progress_clock, int gnt, bus_origid_t flushing_core_id, int main_mem[]);
+bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_cmd_s bus, int progress_clock, int gnt, core_state_t * core_state, int core_id, int core_req_trans, int addr, int data, cache_hit_t hit_type);
 
 #endif // SIM_H
