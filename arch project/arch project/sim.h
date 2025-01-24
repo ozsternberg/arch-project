@@ -54,7 +54,8 @@ typedef enum
 	kRdMiss,
 	kWrMiss,
 	kModifiedMiss,
-	kHit
+	kHit,
+	kWriteHitShared
 }  cache_hit_t;
 
 typedef enum

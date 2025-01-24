@@ -54,3 +54,5 @@ cache_query_rsp_s cache_query(int dsram[][], tsram_entry tsram[], int addr,opcod
     cache_query_rsp_s cache_query_rsp = {hit_type,word};
     return  cache_query_rsp;
 }
+
+void handle_mem
