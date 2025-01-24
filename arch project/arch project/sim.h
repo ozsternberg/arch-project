@@ -13,6 +13,7 @@
 #define OFFSET_WIDTH   2  // Bits
 #define NUM_CORES      4
 #define MEM_RD_LATENCY 16 // Time until memory start returning the data
+#define MEM_FILE_SIZE  1024 
 
 #include "core_sim.h"
 
@@ -133,4 +134,5 @@ mem_rsp_s handle_mem(int dsram[][], tsram_entry tsram[], int addr,opcode op, int
 
 bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_cmd_s bus, int progress_clock, int gnt, core_state_t * core_state, int core_id, int core_req_trans, int addr, int data, cache_hit_t hit_type);
 
+void load_mem_files(int mem_files[NUM_CORE][MEM_FILE_SIZE]);
 #endif // SIM_H
