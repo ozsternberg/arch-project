@@ -428,131 +428,196 @@ void write_reg(int registers[], FILE* regout_pntr)
 bus_cmd_s bus;
 
 // Define core
-core_state_t core_state = idle; 
+core_state_t core_state = Idle; 
 int core_send_counter = 0;
 int core_receive_counter = 0;
 int core_req_trans = 0;
-trans _state ;
+trans_state ;
 static int progress_clock = 0;
-// Split bus address to tsram and dsram parameters
-int offset = parse_addr(bus.bus_addr).offset;
-int index = parse_addr(bus.bus_addr).set;
-int tag = parse_addr(bus.bus_addr).tag;
+int dsram[][];
 
-// Define the relevant tsram entry
-tsram_entry entry = tsram[index];
- 
+
  // need to handle address
  //need to handle synchronization
-// check for send and recieve done flags
+// check for Send and recieve done flags
 // wrap procedure as a function
 
 // Bus routine
 switch (core_state){
-	case idle:
-		progress_clock = 1;
-		if(gnt = 0 && entry.tag = tag && entry.state =! Invalid) // Check if passive hit
-		{
-			if (bus.bus_cmd = kBusRdX || bus.bus_cmd = kBusRd) 
+	case Idle:
+		
+		if(gnt = 0)
+		{	
+			int bus_addr = bus.bus_addr;
+			// Split bus address to tsram and dsram parameters
+			int offset = parse_addr(bus_addr).offset;
+			int index = parse_addr(bus_addr).set;
+			int tag = parse_addr(bus_addr).tag;
+			tsram_entry entry = tsram[index];
+			core_state_t next_state = Idle;
+
+			if(entry.tag = tag && entry.state =! Invalid) // Check if passive hit
 			{
-				if(entry.state = Modified) // If the data is modified- send
-				{ 
-					core_state = send ; 
-					core_send_counter = 0; 
+				if (bus.bus_cmd = kBusRdX || bus.bus_cmd = kBusRd) 
+				{
+					if(entry.state = Modified && progress_clock =1)  // If the data is modified- Send
+					{ 
+						core_send_counter = 0; 
+						next_state = Send ; 
+					}
+				} 
+				if (bus.bus_cmd = kBusRd) //set shared wire
+				{
+					bus.bus_share = 1 ;
+					entry_state = Shared  ; // If command is kBusRd-change state to shared  - from all states(exclusive, modified or shared)
+				}
+				else if (bus.bus_cmd = kBusRdX)
+				{
+					entry_state = Invalid ; // If BusRdX change to Invalid  - from all states(exclusive, modified or shared)
+				}
+				if(progress_clock = 1) // change core state and entry state on next clock cycle
+				{
+					entry.state = entry_state;
+					core_state = next_state;
 				}
 			}
-			if (bus.bus_cmd = kBusRd) //set shared wire
-			{
-				bus.bus_share = 1 ;
-				entry.state = Shared  ; // If command is kBusRd-change state to shared  - from all states(exclusive, modified or shared)
-			}
-			else if (bus.bus_cmd = kBusRdX)
-			{
-				entry.state = Invalid ; // If BusRdX change to Invalid  - from all states(exclusive, modified or shared)
-			}
-			break;
 			
+			break;
 		}
-		if(gnt = 1 && core_req_trans = 1) // check for transaction 
+		if(gnt = 1)  // check for transaction 
 		{
-			bus.bus_origid_t = core_id; // Set bus_origid to core_id
-			bus.bus_addr = addr;
-
-			if(state = kRdMiss)  // If read miss- set bus_cmd to BusRd
+			bus.bus_origid = core_id; // Set bus_origid to core_id
+			if(core_req_trans = 1) 
 			{
-				bus.bus_cmd = kBusRd;
-				core_state = waitForFlash; // A transaction is made, now wait for flash
+				bus.bus_addr = addr; // save a copy of the trans address
+				// Split bus address to tsram and dsram parameters
+				int offset = parse_addr(bus.bus_addr).offset;
+				int index = parse_addr(bus.bus_addr).set;
+				int tag = parse_addr(bus.bus_addr).tag;
+				tsram_entry entry = tsram[index];
+				mesi_state_t entry_state = entry.state;
+				int update_mem = dsram;
+				
+				if(state = kRdMiss)  // If read miss- set bus_cmd to BusRd
+				{
+					bus.bus_cmd = kBusRd;
+					next_state = WaitForFlush; // A transaction is made, now wait for flash
+					
+				}
+				if(state = kWrMiss) // If write miss - set bus_cmd to BusRdX
+				{
+					bus.bus_cmd = kBusRdX;
+					next_state = WaitForFlush; // A transaction is made, now wait for flash
+				}
+				if (state = kWrHitShared) // If cache writeHit on shared data - set bus_cmd to kBusRdX to invalidate data on other caches
+				{
+					bus.bus_cmd = kBusRdX;
+					entry_state = Modified;
+					update_mem[index][offset] = data;
+				}
+
+				if (state = kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
+				{
+					bus.bus_cmd = kFlush;
+					bus.bus_data = dsram[index][core_send_counter];
+					next_state = Send;
+					core_send_counter = 1;
+				}
+				else
+				{
+					printf("Transaction is made, but no transaction is required\n");	
+				}
+				if(progress_clock = 1)
+				{
+					entry.state = entry_state;
+					core_state = next_state;
+					entry.tag = tag;
+					dsram[index][offset] = update_mem[index][offset];
+				}
+					
+			}
+			else
+			{
+				bus.bus_cmd = kNoCmd;
+			}
+			
+			break;
+				
+		}
+		
+		break;
+
+	case WaitForFlush:
+	
+		next_state = WaitForFlush;
+		if(bus.bus_cmd = kFlush)
+		{
+			if(bus.bus_addr != (addr - offset))
+			{
+				printf("Data is Received from wrong address\n");
+			}
+			next_state = Receive;
+			core_receive_counter = 0;
+		}
+		if(progress_clock = 1)
+		{
+			core_state = next_state;
+		}
+		break;
+	
+	case Send:
+
+		next_state = Send;
+		flush_done = 0; // Raise signal when flush is done
+		bus.bus_origid = core_id ;
+		bus.bus_cmd = kFlush;
+		bus.bus_data = dsram[index][core_send_counter];
+		bus.bus_addr = bus_addr + core_send_counter - offset;
+		if(progress_clock = 1)
+		{
+			core_send_coumter++;
+			if(core_send_counter == BLOCK_SIZE -1)
+			{
+				core_send_counter = 0;
+				entry.state = Idle;
+				flush_done = 1;
+				entry.state = Shared;
+				break;
+			}	
+			else
+			{
+				entry.state = next_state;
+			}
+		}
+		
+		break;
+		
+	case Receive:
+		
+		
+		if(bus.bus_addr = (addr + core_receive_counter - offset) && progress_clock = 1)
+		{
+			receive _done = 0;
+			dsram[index][core_receive_counter] = bus.bus_data;
+			core_receive_counter++;
+
+			if(core_receive_counter == BLOCK_SIZE -1)
+			{
 				if(bus.bus_share = 0)
 				{
-					entry.state = Exclusive; // If no other cache asserts shared ,set entry state to exclusive
+					entry.state = Exclusive; // If no other cache asserts shared ,set entry_state to exclusive
 				}
 				else
 				{
 					entry.state = Shared; // If another cache asserts shared set entry to shared
 				}
+				core_receive_counter = 0;
+				receive _done = 1;
+				next_state = Idle;
+				break;
 			}
-			elif(state = kWrMiss) // If write miss - set bus_cmd to BusRdX
-			{
-				bus.bus_cmd = kBusRdX;
-				core_state = waitForFlash; // A transaction is made, now wait for flash
-				entry.state = Modified;
-			}
-			elif (state = kModifiedMiss) // If cache overwrite modified data - set bus_cmd to flush
-			{
-				bus.bus_cmd = kFlush;
-				bus.bus_data = dsram[index][core_send_counter];
-				core_state = send;
-				core_send_counter = 1;
-			}
-			else
-			{
-				printf("Transaction is made, but no transaction is required\n");	
-			}
-			
 		}
-		break;
-
-	case waitForFlash:
-		progress_clock =0;
-		if(bus.bus_cmd = kFlush)
-		{
-			progress_clock = 1;
-			if(bus.bus_addr != addr)
-			{
-				printf("Data is received from wrong address\n");
-			}
-			core_state = receive;
-			core_receive_counter = 0;
-		}
-		break;
-	
-	case send:
-		progress_clock = 1;
-		flush_done = 0; // Raise signal when flush is done
-		bus.bus_cmd = kFlush;
-		bus.bus_data = dsram[index][core_send_counter];
-		core_send_coumter++;
-		if(core_send_counter == BLOCK_SIZE -1)
-		{
-			bus.bus_cmd = kNoCmd;
-			core_send_counter = 0;
-			core_state = idle;
-			flush_done = 1;
-			break;
-		}
-		break;
 		
-	case receive:
-		progress_clock = 1;
-		dsram[index][core_receive_counter] = bus.bus_data;
-		core_receive_counter++;
-		if(core_receive_counter == BLOCK_SIZE -1)
-		{
-			core_receive_counter = 0;
-			core_state = idle;
-			bus.req_enable = 0; //set req enable to 0 when cache receives all data
-			break;
-		}
 		break;
 }
 

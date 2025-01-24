@@ -30,7 +30,7 @@ switch (bus_state)
     // Check all the cores
     bus_req = cores(bus_req, gnt ,gnt_core_id, progress_clock);
 
-    if (bus_req.req_enable == 0) break; // If the current core does not have a req we move to the next one
+    if (bus_req.bus_cmd == kNoCmd) break; // If the current core does not have a req we move to the next one
 
     if (bus_req.bus_cmd == kBusRd || bus_req.bus_cmd == kBusRdX)  // We wait for flush from either another core or the memory
     {

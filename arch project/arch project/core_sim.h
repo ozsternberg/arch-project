@@ -60,10 +60,10 @@ typedef struct instrc {
 // Define enum for Bus transactions
 typedef enum
 {
-	idle,
-	waitForFlash,
-	send,
-	receive
+	Idle,
+	WaitForFlush,
+	Send,
+	Receive
 } core_state_t;
 
 const char* get_io_register_name(int reg_number);

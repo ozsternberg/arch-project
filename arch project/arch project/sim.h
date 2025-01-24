@@ -54,13 +54,15 @@ typedef enum
 	kRdMiss,
 	kWrMiss,
 	kModifiedMiss,
-	kHit
+	kHit,
+	kWrHitShared
 }  cache_hit_t;
 
 typedef enum
 {
 	kIdle,
-	kWaitForGnt
+	kWaitForGnt,
+	kWaitForFlush
 } cache_state_t;
 
 typedef struct
@@ -101,6 +103,20 @@ typedef struct
 } cache_query_rsp_s ;
 
 
+typedef struct
+{
+	unsigned int stall;
+	unsigned int data;
+	bus_cmd_s    bus;
+} mem_rsp_s;
+
+
+typedef struct 
+{
+	bus_cmd_s bus_cmd;
+	int data_rtn;
+} bus_routine_rsp_s;
+
 void progress_register_data(register_s* reg);
 
 cache_addr_s parse_addr(int addr);
@@ -112,5 +128,9 @@ bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd, int progress_clock);
 bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt_core_id, int progress_clock);
 
 cache_query_rsp_s cache_query(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data,int progress_clk);
+
+mem_rsp_s handle_mem(int dsram[][], tsram_entry tsram[], int addr,opcode op, int data, int progress_clk, cache_state_t * cache_state, bus_cmd_s bus, int gnt);
+
+bus_routine_rsp_s bus_routine(bus_state_t bus_state, bus_cmd_s bus_req, int mem_wait_counter, int mem_rd_counter, int shared, int progress_clock, int gnt, bus_origid_t flushing_core_id, int main_mem[]);
 
 #endif // SIM_H
