@@ -8,8 +8,12 @@
 #include "sim_source.h"
 
 //#define ALLOW_EMPTY_ARGUMENTS
-//#define DEBUG_ON
-//#define TIMEOUT_ON
+
+#ifndef DEBUG_ON
+#define DEBUG_ON
+#endif
+
+#define TIMEOUT_ON
 typedef enum
 {
 	mem_depth			= 4096,
@@ -29,10 +33,10 @@ typedef enum
 {
 	add = 0,
 	sub = 1,
-	mul = 2,
-	and = 3,
-	or = 4,
-	xor = 5,
+	and = 2,
+	or =  3,
+	xor = 4,
+	mul = 5,
 	sll = 6,
 	sra = 7,
 	srl = 8,
@@ -79,7 +83,7 @@ typedef enum
 } core_state_t;
 
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data,int progress_clk);
-mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk, cache_state_t * cache_state, bus_cmd_s bus, int gnt);
+mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id);
 bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_cmd_s bus, int progress_clock, int gnt, core_state_t * core_state, int core_id, int core_req_trans, int addr, int data, cache_hit_t hit_type);
 
 

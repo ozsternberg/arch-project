@@ -1,4 +1,3 @@
-#include "core_source.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,7 +5,7 @@
 
 // This file contains old functions that are not used in the current implementation and should be removed
 
-
+/*
 instrc create_instrc(const int line_dec) {
 	instrc new_instrc = {
 		fail, // Opcode
@@ -38,6 +37,7 @@ instrc create_instrc(const int line_dec) {
 	return  new_instrc;
 
 }
+
 
 const char* get_io_register_name(int reg_number) {
 	switch (reg_number) {
@@ -428,21 +428,21 @@ void write_reg(int registers[], FILE* regout_pntr)
 }
 bus_cmd_s bus;
 
-// Define core
-core_state_t core_state = Idle;
-int core_send_counter = 0;
-int core_receive_counter = 0;
-int core_req_trans = 0;
-trans_state ;
-static int progress_clock = 0;
-int dsram[][];
+//// Define core
+//core_state_t core_state = Idle;
+//int core_send_counter = 0;
+//int core_receive_counter = 0;
+//int core_req_trans = 0;
+//trans_state ;
+//static int progress_clock = 0;
+//int dsram[][];
 
 
  // need to handle address
  //need to handle synchronization
 // check for Send and recieve done flags
 // wrap procedure as a function
-
+/*
 // Bus routine
 switch (core_state){
 	case Idle:
@@ -623,4 +623,4 @@ switch (core_state){
 }
 
 
-
+*/

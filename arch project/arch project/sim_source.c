@@ -26,13 +26,13 @@ int round_robin_arbitrator()
 	return curr_r;
 }
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_id, int progress_clock, int clk,int argc, char *argv[])
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_id, int progress_clock, int clk,int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE])
 {
 	int core_issued_flush = 0;
 	bus_cmd_s core_cmd;
 	bus_cmd_s core_cmd_rtr;
 
-	if (priority_for_gnt == 1) bus_req = core(gnt_core_id, gnt, bus_req, progress_clock, clk,argc,argv); // If gnt we give priority to the selected core
+	if (priority_for_gnt == 1) bus_req = core(gnt_core_id, gnt, bus_req, progress_clock, clk,argc,argv,mem); // If gnt we give priority to the selected core
 	core_cmd_rtr = bus_req;
 
 	if (core_cmd_rtr.bus_cmd == kHalt) return core_cmd_rtr; // If halt is issued we return the bus_req
@@ -41,10 +41,10 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
     {
 		if (core_id == gnt_core_id && priority_for_gnt == 1) continue;
 
-		core_cmd = core(core_id,0,bus_req,progress_clock,clk,argc,argv);
+		core_cmd = core(core_id,0,bus_req,progress_clock,clk,argc,argv,mem);
 		if (core_cmd_rtr.bus_cmd == kHalt) return core_cmd; // If halt is issued we return the bus_req
 
-		if (core_cmd == NULL) perror("Error - core returned NULL\n");
+		// if (core_cmd == ) perror("Error - core returned NULL\n");
 
     	if (core_cmd.bus_cmd == kFlush && priority_for_gnt == 0)  // We rely on cores that have modifed data to flush on read - that is the only thing we care about
 		{
@@ -57,30 +57,40 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 	return core_cmd_rtr;
 }
 
-void load_mem_files(int mem_files[NUM_CORES][MEM_FILE_SIZE], const char *file_names[NUM_CORES]) {
+void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]) {
 	FILE *file;
 	char buffer[100];
 	for (int i = 0; i < NUM_CORES; i++) {
-		if (file_names[i] == NULL) continue; // Skip if no file name is provided for this core
-		file = fopen(file_names[i], "r");
-		if (file == NULL) {
-			fprintf(stderr, "Error opening file %s\n", file_names[i]);
+		if (file_names[i+1] == NULL) continue; // Skip if no file name is provided for this core
+		if (fopen_s(&file, file_names[i+1], "r") != 0) {
+			fprintf_s(stderr, "Error opening file %s\n", file_names[i+1]);
 			exit(1);
 		}
+#ifdef DEBUG_ON
+		printf("\nReading file %s\n", file_names[i+1]);
+#endif
 		for (int j = 0; j < MEM_FILE_SIZE; j++) {
 			if (fgets(buffer, sizeof(buffer), file) == NULL) {
-				fprintf(stderr, "Error reading data from file %s\n", file_names[i]);
-				fclose(file);
-				exit(1);
+				if (feof(file)) {
+					break; // End of file reached, break the loop
+				} else {
+					fprintf_s(stderr, "Error reading data from file %s\n", file_names[i+1]);
+					fclose(file);
+					exit(1);
+				}
 			}
-			mem_files[i][j] = (int)strtol(buffer, NULL, 16); // Convert hex string to int
+			mem_files[i][j] = (unsigned int)strtoul(buffer, NULL, 16); // Convert hex string to int
 		}
 		fclose(file);
 	}
 }
 
 void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
-	FILE *file = fopen(file_name, "r");
+	FILE *file;
+	if (fopen_s(&file, file_name, "r") != 0) {
+		fprintf_s(stderr, "Error opening file %s\n", file_name);
+		exit(1);
+	}
 	if (file == NULL) {
 		fprintf(stderr, "Error opening file %s\n", file_name);
 		exit(1);
@@ -97,7 +107,11 @@ void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 }
 
 void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size) {
-	FILE *file = fopen(file_name, "w");
+	FILE *file;
+	if (fopen_s(&file, file_name, "w") != 0) {
+		fprintf_s(stderr, "Error opening file %s for writing\n", file_name);
+		exit(1);
+	}
 	if (file == NULL) {
 		fprintf(stderr, "Error opening file %s for writing\n", file_name);
 		exit(1);
@@ -111,7 +125,7 @@ void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size
 }
 
 void check_input_files(int argc, char *argv[], const char *input_files[], int input_files_count) {
-	if (argc - 1 != input_files_count) {
+	if (argc - 1 < input_files_count) {
 		fprintf(stderr, "Error: Number of input files does not match the requirement. Expected %d but got %d\n", input_files_count, argc - 1);
 		exit(EXIT_FAILURE);
 	}
@@ -130,7 +144,7 @@ void check_input_files(int argc, char *argv[], const char *input_files[], int in
 	}
 }
 
-char create_output_files(int argc, char *argv[], const char *output_files[], int output_files_count) {
+const char **create_output_files(int argc, char *argv[], const char *output_files[], int output_files_count) {
 	const char **file_names = malloc(output_files_count * sizeof(char *));
 	if (file_names == NULL) {
 		fprintf(stderr, "Error: Memory allocation failed\n");
@@ -145,14 +159,25 @@ char create_output_files(int argc, char *argv[], const char *output_files[], int
 		}
 	}
 
+	// Ensure to free the allocated memory after use
+	// atexit(free_file_names);
+
 	return file_names;
 }
 
+// void free_file_names(const char **file_names) {
+// 	free(file_names);
+// }
+
 void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE]) {
     char file_name[20];
-    sprintf(file_name, "dsram%d.txt", core_id);
+	snprintf(file_name, sizeof(file_name), "dsram%d.txt", core_id);
 
-    FILE *file = fopen(file_name, "w");
+	FILE *file;
+	if (fopen_s(&file, file_name, "w") != 0) {
+		fprintf(stderr, "Error opening file %s for writing\n", file_name);
+		exit(1);
+	}
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -169,9 +194,13 @@ void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE]) {
 
 void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]) {
     char file_name[20];
-    sprintf(file_name, "tsram%d.txt", core_id);
+	snprintf(file_name, sizeof(file_name),"tsram%d.txt", core_id);
 
-    FILE *file = fopen(file_name, "w");
+	FILE *file;
+	if (fopen_s(&file, file_name, "w") != 0) {
+		fprintf(stderr, "Error opening file %s for writing\n", file_name);
+		exit(1);
+	}
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);

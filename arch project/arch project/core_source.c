@@ -1,4 +1,5 @@
 #include "core_source.h"
+#include <stdlib.h>
 
 // The dsram and tsram should be of only once core
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr, opcode_t op, int data, int progress_clk)
@@ -59,7 +60,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     cache_query_rsp_s cache_query_rsp = cache_query(dsram,tsram,addr,op,data,progress_clk);
     cache_hit_t hit_type = cache_query_rsp.hit_type;
 
-    int core_req_trans = op == sw || op == lw || cache_state != kIdle ? 1 : 0;
+    int core_req_trans = op == sw || op == lw || *cache_state != kIdle ? 1 : 0;
 
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
 	mem_rsp_s mem_rsp = {cache_query_rsp.data, 0, bus_routine_rsp.bus_cmd};
@@ -68,8 +69,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     {
         case kIdle:
             mem_rsp.stall = 0;
-            if (hit_type == kHit)
-            break; // If hit do nothing
+            if (hit_type == kHit || core_req_trans == 0) break; // If hit or no req do nothing
 
             // If gnt is 0, stall
             if (gnt == 0)
@@ -124,7 +124,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 
 bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_cmd_s bus, int progress_clock, int gnt, core_state_t * core_state, int core_id, int core_req_trans, int addr, int data, cache_hit_t hit_type)
 {
-    bus_cmd_s bus;
+
 
     // Define core
     static int core_send_counter[NUM_CORES]    = {0};
@@ -151,7 +151,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
 	switch (*core_state){
     	case Idle:
 
-    		if(gnt = 0)
+    		if(gnt == 0)
     		{
     			bus_addr[core_id] = bus.bus_addr;
     			// Split bus address to tsram and dsram parameters
@@ -188,10 +188,10 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     			}
     			break;
     		}
-    		if(gnt = 1)  // check for transaction
+    		if(gnt == 1)  // check for transaction
     		{
     			bus.bus_origid = core_id; // Set bus_origid to core_id
-    			if(core_req_trans = 1)
+    			if(core_req_trans == 1)
     			{
     				bus.bus_addr = addr; // save a copy of the trans address
     				// Split bus address to tsram and dsram parameters
@@ -200,27 +200,27 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				tag[core_id] = parse_addr(bus.bus_addr).tag;
     				entry[core_id] = &tsram[index[core_id]];
     				entry_state[core_id] = entry[core_id]->state;
-    				int **update_mem = dsram;
+					int (*update_mem)[BLOCK_SIZE] = dsram;
 
-    				if(hit_type = kRdMiss)  // If read miss- set bus_cmd to BusRd
+    				if(hit_type == kRdMiss)  // If read miss- set bus_cmd to BusRd
     				{
     					bus.bus_cmd = kBusRd;
     					next_state[core_id] = WaitForFlush; // A transaction is made, now wait for flash
 
     				}
-    				if(hit_type = kWrMiss) // If write miss - set bus_cmd to BusRdX
+    				if(hit_type == kWrMiss) // If write miss - set bus_cmd to BusRdX
     				{
     					bus.bus_cmd = kBusRdX;
     					next_state[core_id] = WaitForFlush; // A transaction is made, now wait for flash
     				}
-    				if (hit_type = kWrHitShared) // If cache writeHit on shared data - set bus_cmd to kBusRdX to invalidate data on other caches
+    				if (hit_type == kWrHitShared) // If cache writeHit on shared data - set bus_cmd to kBusRdX to invalidate data on other caches
     				{
     					bus.bus_cmd = kBusRdX;
     					entry_state[core_id] = Modified;
     					update_mem[index[core_id]][offset[core_id]] = data;
     				}
 
-    				if (hit_type = kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
+    				if (hit_type == kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
     				{
     					bus.bus_cmd = kFlush;
     					bus.bus_data = dsram[index[core_id]][core_send_counter[core_id]];
@@ -231,7 +231,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				{
     					printf("Transaction is made, but no transaction is required\n");
     				}
-    				if(progress_clock = 1)
+    				if(progress_clock == 1)
     				{
     					entry[core_id]->state = entry_state[core_id];
     					*core_state = next_state[core_id];
@@ -305,7 +305,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
 
     			if(core_receive_counter[core_id] == BLOCK_SIZE -1)
     			{
-    				if(bus.bus_share = 0)
+    				if(bus.bus_share == 0)
     				{
     					entry[core_id]->state = Exclusive; // If no other cache asserts shared ,set entry_state[core_id] to exclusive
     				}
@@ -315,7 +315,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				}
     				core_receive_counter[core_id] = 0;
     				receive_done = 1;
-    				core_state = Idle;
+    				*core_state = Idle;
     				break;
     			}
     		}
@@ -374,9 +374,10 @@ int get_signed_imm(const int imm) {
 int execute_op(const instrc instrc, int registers[])
 {
 	// NOTE: This function assumes that $imm has been loaded with the appropriate value
-	int* rd = (instrc.rd == 1) ? instrc.imm : &registers[instrc.rd];
-	int* rs = (instrc.rd == 1) ? instrc.imm : &registers[instrc.rs];
-	int* rt = (instrc.rd == 1) ? instrc.imm : &registers[instrc.rt];
+    int imm = instrc.imm;
+	int* rd = (instrc.rd == 1) ? &imm : &registers[instrc.rd];
+	int* rs = (instrc.rd == 1) ? &imm : &registers[instrc.rs];
+	int* rt = (instrc.rd == 1) ? &imm : &registers[instrc.rt];
 
 	switch (instrc.opcode)
 	{
@@ -405,10 +406,10 @@ int execute_op(const instrc instrc, int registers[])
 	case halt:
 		return -1;  // Return 1 to get an exit code
 	case stall:
-		return NULL;
+		return 0;
 	default:
 		printf("Unknown opcode: %d\n", instrc.opcode);
-		return NULL;
+		return 0;
 		break;
 	}
 };
@@ -423,7 +424,7 @@ instrc decode_line(const int line_dec, int registers[], int pc) {
 		0 // is i type
 	};
 
-	if ((unsigned int)line_dec > 0xFFFFF) {
+	if ((unsigned int)line_dec > 0xFFFFFFFF) {
 		puts("Line is corrupted!\n");
 		return new_instrc;
 	}
@@ -451,7 +452,8 @@ void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
     char file_name[20];
     snprintf(file_name, sizeof(file_name), "regout%d.txt", core_id);
 
-    FILE *file = fopen(file_name, "w");
+    FILE *file;
+    fopen_s(&file, file_name, "w");
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -502,7 +504,7 @@ FILE** create_trace_files() {
         char file_name[20];
         snprintf(file_name, sizeof(file_name), "core%dtrace.txt", i);
 
-        files[i] = fopen(file_name, "w");
+        fopen_s(&files[i], file_name, "w");
         if (files[i] == NULL) {
             fprintf(stderr, "Error opening file %s for writing\n", file_name);
             exit(1);

@@ -15,6 +15,9 @@
 #define MEM_RD_LATENCY 16 // Time until memory start returning the data
 #define MEM_FILE_SIZE  1024
 
+#ifndef DEBUG_ON
+#define DEBUG_ON	
+#endif // !DEBUG_ON
 
 typedef enum
 {
@@ -111,30 +114,28 @@ typedef struct
 	int data_rtn;
 } bus_routine_rsp_s;
 
-extern const char *input_files[] = {"imem0.txt", "imem1.txt", "imem2.txt", "imem3.txt", "memin.txt"};
-extern const char *output_files[] = {
-    "memout.txt", "regout0.txt", "regout1.txt", "regout2.txt", "regout3.txt",
-    "core0trace.txt", "core1trace.txt", "core2trace.txt", "core3trace.txt",
-    "bustrace.txt", "dsram0.txt", "dsram1.txt", "dsram2.txt", "dsram3.txt",
-    "tsram0.txt", "tsram1.txt", "tsram2.txt", "tsram3.txt",
-    "stats0.txt", "stats1.txt", "stats2.txt", "stats3.txt"
-  };
+extern const char *input_files[];
+extern const char *output_files[];
 
 cache_addr_s parse_addr(int addr);
 
 int round_robin_arbitrator();
 
-bus_cmd_s core(int id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, int argc, char *argv[]);
+bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE]);
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clock,int argc, char *argv[]);
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clk,int clk,int argc, char *argv[],int mem[NUM_CORES][MEM_FILE_SIZE]);
 
-void load_mem_files(int mem_files[NUM_CORES][MEM_FILE_SIZE], const char *file_names[NUM_CORES]);
+void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]);
 
 void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]);
 
 void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size);
 
-char **create_output_files(int argc, char *argv[], const char *output_files[], int output_files_count);
+void check_input_files(int argc, char *argv[], const char *input_files[], int input_files_count);
+
+const char **create_output_files(int argc, char *argv[], const char *output_files[], int output_files_count);
+
+void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE]);
 
 void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]);
 
