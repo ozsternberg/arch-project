@@ -1,38 +1,35 @@
-#include "sim.h"
+#include "sim_source.h"
 
 
 int main(int argc, char *argv[]) {
-  const char *input_files[] = {"imem0.txt", "imem1.txt", "imem2.txt", "imem3.txt", "memin.txt"};
-  const char *output_files[] = {
-    "memout.txt", "regout0.txt", "regout1.txt", "regout2.txt", "regout3.txt",
-    "core0trace.txt", "core1trace.txt", "core2trace.txt", "core3trace.txt",
-    "bustrace.txt", "dsram0.txt", "dsram1.txt", "dsram2.txt", "dsram3.txt",
-    "tsram0.txt", "tsram1.txt", "tsram2.txt", "tsram3.txt",
-    "stats0.txt", "stats1.txt", "stats2.txt", "stats3.txt"
-  };
 
   int input_files_count = sizeof(input_files) / sizeof(input_files[0]);
   int output_files_count = sizeof(output_files) / sizeof(output_files[0]);
 
   check_input_files(argc, argv, input_files, input_files_count);
-  create_output_files(argc, argv, output_files, output_files_count);
+  char updated_output_files[] = create_output_files(argc, argv, output_files, output_files_count);
 
   int mem_files[NUM_CORES][MEM_FILE_SIZE];
-  load_mem_files(mem_files);
+  load_mem_files(mem_files,input_files);
 
   // Define main mem
   static int main_mem[MAIN_MEM_DEPTH];
-  bus_state_t bus_state = kBusAvailable;
-  bus_cmd_s bus_req = {0};
+  load_main_mem(argv[5], main_mem);
+
+  // Define various variables
+  static bus_state_t bus_state = kBusAvailable;
+  static bus_cmd_s bus_req = {0};
   static int mem_wait_counter = 0;
   static int mem_rd_counter = 0;
   static int shared;
+  static int clk = 0;
 
   // Various flags
   static int progress_clock = 0;
   static int gnt = 0;
   static int priority = 0;
   static bus_origid_t flushing_core_id;
+
 
   while (1) {
     switch (bus_state) {
@@ -43,7 +40,7 @@ int main(int argc, char *argv[]) {
         int gnt_core_id = round_robin_arbitrator;
 
         // Check all the cores
-        bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock);
+        bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock,clk,argc,argv);
 
         if (bus_req.bus_cmd == kNoCmd) break; // If the current core does not have a req we move to the next one
 
@@ -66,7 +63,7 @@ int main(int argc, char *argv[]) {
         gnt = 0;
 
         // Check for flush without progressing the clock and keeping the previous bus req safe
-        bus_cmd_s core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock);
+        bus_cmd_s core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk,argc,argv);
 
         // We listen to flush even without a gnt
         if (core_cmd.bus_cmd == kFlush) { // If we see another flush from core while waiting we update the
@@ -76,7 +73,7 @@ int main(int argc, char *argv[]) {
           progress_clock = 1;
 
           // Progress the cores and set flushing core as the one with the gnt, also update the bus req
-          bus_req = cores(bus_req, priority, gnt, core_cmd.bus_origid, progress_clock);
+          bus_req = cores(bus_req, priority, gnt, core_cmd.bus_origid, progress_clock, clk,argc,argv);
 
           if ((int)&bus_req != (int)&core_cmd) printf("bus req and core cmd are not the same!\n"); // Sanity check to see that we get the expected bus cmd
 
@@ -108,7 +105,7 @@ int main(int argc, char *argv[]) {
         progress_clock = 1;
         priority = 0;
 
-        bus_cmd_s core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock);
+        bus_cmd_s core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk,argc,argv);
         if ((int)&bus_req != (int)&core_cmd) printf("Error - bus_req should not change when data returns from main mem!\n"); // bus_req should not change when data returns from main mem
 
         if (mem_rd_counter == BLOCK_SIZE - 1) {
@@ -127,7 +124,7 @@ int main(int argc, char *argv[]) {
         progress_clock = 1;
         priority = 1;
 
-        bus_req = cores(bus_req, priority, gnt, flushing_core_id, progress_clock);
+        bus_req = cores(bus_req, priority, gnt, flushing_core_id, progress_clock, clk,argc,argv);
 
         if (flushing_core_id != bus_req.bus_origid) printf("Flush src changed through transaction, original = %d, new = %d\n", flushing_core_id, bus_req.bus_origid);
 
@@ -143,6 +140,12 @@ int main(int argc, char *argv[]) {
         mem_rd_counter++;
         break;
     }
+    clk++;
+    if (bus_req.bus_cmd == kHalt) break; // If halt is issued we break the loop and exit
   }
+
+  // Close the files
+  store_mem_to_file(output_files[0], main_mem, MAIN_MEM_DEPTH);
+
   return 0;
 }

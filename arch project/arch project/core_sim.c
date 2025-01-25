@@ -1,15 +1,16 @@
-#include "core_sim.h"
-#include "sim.h"
+#include "core_source.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+// This file contains old functions that are not used in the current implementation and should be removed
+
 
 instrc create_instrc(const int line_dec) {
 	instrc new_instrc = {
 		fail, // Opcode
-		-1,	  // rd 
+		-1,	  // rd
 		-1,	  // rs
 		-1,	  // rt
 		-1,	  // imm
@@ -27,12 +28,12 @@ instrc create_instrc(const int line_dec) {
 	int rt	   = (0x0000F & line_dec);
 
 	new_instrc.opcode = (opcode)opcode_int;
-	new_instrc.rd = rd; 
+	new_instrc.rd = rd;
 	new_instrc.rs = rs;
 	new_instrc.rt = rt;
 
-	// Set a flag if imm is expected to be used 
-	if (new_instrc.rd == 1 || new_instrc.rs == 1 || new_instrc.rt == 1) new_instrc.is_i_type = true;	
+	// Set a flag if imm is expected to be used
+	if (new_instrc.rd == 1 || new_instrc.rs == 1 || new_instrc.rt == 1) new_instrc.is_i_type = true;
 
 	return  new_instrc;
 
@@ -275,7 +276,7 @@ int load_file_into_array(const char* filename, int array[], const int max_lines,
 	}
 
 	int line_count = 0;
-	char buffer[10]; 
+	char buffer[10];
 	while (fgets(buffer, sizeof(buffer), file) && line_count < max_lines)
 	{
 		// Set a flag to indicate if the incoming string is hex or dec
@@ -297,7 +298,7 @@ void update_mon(int frame_buffer[][monitor_pixel_width], const int pixel_value, 
 		return;
 	}
 
-	// Parse the address to line and pixel offset 
+	// Parse the address to line and pixel offset
 	int line_addr  = (unsigned)(monitoraddr & 0xFF00) >> 8;
 	int pixel_offset = monitoraddr & 0x00FF;
 
@@ -314,17 +315,17 @@ void transfer_data(int mem[], int disk[], const int write, const int sector_offs
 		int mem_index = mem_addr + offset;
 
 		// Ensure array indices are within bounds
-		if (disk_index >= hard_disk_width || mem_index >= mem_depth) 
+		if (disk_index >= hard_disk_width || mem_index >= mem_depth)
 		{
 			printf("Error: Index out of bounds. disk_index: %d, mem_index: %d\n", disk_index, mem_index);
 			return;
 		}
 
-		if (write == 2) 
+		if (write == 2)
 		{
 			disk[disk_index] = mem[mem_index];
 		}
-		else if (write == 1) 
+		else if (write == 1)
 		{
 			mem[mem_index] = disk[disk_index];
 		}
@@ -355,11 +356,11 @@ void create_hwtrace_line(const unsigned int clk, const instrc instrc, const int 
 	char* io_register_name = get_io_register_name(hw_register_target);    // Get the HW register name
 
 	// Check the opccode for in/out - otherwise do nothing
-	if (instrc.opcode == 20) 
+	if (instrc.opcode == 20)
 	{
 		fprintf(hwregtrace_pntr, "%u WRITE %s %08X\n", clk, io_register_name, registers[instrc.rd]);
 	}
-	else if (instrc.opcode == 19) 
+	else if (instrc.opcode == 19)
 	{
 		fprintf(hwregtrace_pntr, "%u READ %s %08X\n", clk, io_register_name, registers[instrc.rd]);
 	}
@@ -428,7 +429,7 @@ void write_reg(int registers[], FILE* regout_pntr)
 bus_cmd_s bus;
 
 // Define core
-core_state_t core_state = Idle; 
+core_state_t core_state = Idle;
 int core_send_counter = 0;
 int core_receive_counter = 0;
 int core_req_trans = 0;
@@ -445,9 +446,9 @@ int dsram[][];
 // Bus routine
 switch (core_state){
 	case Idle:
-		
+
 		if(gnt = 0)
-		{	
+		{
 			int bus_addr = bus.bus_addr;
 			// Split bus address to tsram and dsram parameters
 			int offset = parse_addr(bus_addr).offset;
@@ -458,14 +459,14 @@ switch (core_state){
 
 			if(entry.tag = tag && entry.state =! Invalid) // Check if passive hit
 			{
-				if (bus.bus_cmd = kBusRdX || bus.bus_cmd = kBusRd) 
+				if (bus.bus_cmd = kBusRdX || bus.bus_cmd = kBusRd)
 				{
 					if(entry.state = Modified && progress_clock =1)  // If the data is modified- Send
-					{ 
-						core_send_counter = 0; 
-						next_state = Send ; 
+					{
+						core_send_counter = 0;
+						next_state = Send ;
 					}
-				} 
+				}
 				if (bus.bus_cmd = kBusRd) //set shared wire
 				{
 					bus.bus_share = 1 ;
@@ -481,13 +482,13 @@ switch (core_state){
 					core_state = next_state;
 				}
 			}
-			
+
 			break;
 		}
-		if(gnt = 1)  // check for transaction 
+		if(gnt = 1)  // check for transaction
 		{
 			bus.bus_origid = core_id; // Set bus_origid to core_id
-			if(core_req_trans = 1) 
+			if(core_req_trans = 1)
 			{
 				bus.bus_addr = addr; // save a copy of the trans address
 				// Split bus address to tsram and dsram parameters
@@ -497,12 +498,12 @@ switch (core_state){
 				tsram_entry entry = tsram[index];
 				mesi_state_t entry_state = entry.state;
 				int update_mem = dsram;
-				
+
 				if(state = kRdMiss)  // If read miss- set bus_cmd to BusRd
 				{
 					bus.bus_cmd = kBusRd;
 					next_state = WaitForFlush; // A transaction is made, now wait for flash
-					
+
 				}
 				if(state = kWrMiss) // If write miss - set bus_cmd to BusRdX
 				{
@@ -525,7 +526,7 @@ switch (core_state){
 				}
 				else
 				{
-					printf("Transaction is made, but no transaction is required\n");	
+					printf("Transaction is made, but no transaction is required\n");
 				}
 				if(progress_clock = 1)
 				{
@@ -534,21 +535,21 @@ switch (core_state){
 					entry.tag = tag;
 					dsram[index][offset] = update_mem[index][offset];
 				}
-					
+
 			}
 			else
 			{
 				bus.bus_cmd = kNoCmd;
 			}
-			
+
 			break;
-				
+
 		}
-		
+
 		break;
 
 	case WaitForFlush:
-	
+
 		next_state = WaitForFlush;
 		if(bus.bus_cmd = kFlush)
 		{
@@ -564,7 +565,7 @@ switch (core_state){
 			core_state = next_state;
 		}
 		break;
-	
+
 	case Send:
 
 		next_state = Send;
@@ -583,18 +584,18 @@ switch (core_state){
 				flush_done = 1;
 				entry.state = Shared;
 				break;
-			}	
+			}
 			else
 			{
 				entry.state = next_state;
 			}
 		}
-		
+
 		break;
-		
+
 	case Receive:
-		
-		
+
+
 		if(bus.bus_addr = (addr + core_receive_counter - offset) && progress_clock = 1)
 		{
 			receive _done = 0;
@@ -617,7 +618,7 @@ switch (core_state){
 				break;
 			}
 		}
-		
+
 		break;
 }
 
