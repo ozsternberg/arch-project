@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include "core_source.h"
 #include <string.h>
+#include "sim_source.h"
 
 bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int clk, int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE]) {
 
 	int static dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
 	tsram_entry static tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
 	cache_state_t static cache_state[NUM_CORES];
-	core_state_t core_state[NUM_CORES];
+	core_state_t  static core_state[NUM_CORES];
 
 
 	static FILE* trace_files[NUM_CORES] = { 0 };
@@ -99,8 +100,9 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 		next_pc = *pc; // decode the same instrc next clk
 
-		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
-		fe_dec->pc_d = fe_dec->pc_q;
+		stall_reg(fe_dec); // decode the same instrc next clk
+		//fe_dec->data_d = fe_dec->data_q; 
+		//fe_dec->pc_d = fe_dec->pc_q;
 		#ifdef DEBUG_ON
 		printf("core: %x, DECODE wait for rd or rs\n", core_id);
 		#endif
@@ -162,13 +164,13 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		}
 	}
 	else {
-		if (opcode != jal & opcode != sw) {
+		if (opcode != jal && opcode != sw) {
 			busy_regs[dec_ex->instrc_d.rd] = 1;
 		};
 	}
 
-	if (opcode == jal & busy_regs[dec_ex->instrc_d.rd] ) {
-		next_pc = (dec_ex->instrc_d.rd == 1) ? dec_ex->instrc_d.imm : registers[dec_ex->instrc_d.rd];
+	if (opcode == jal && busy_regs[dec_ex->instrc_d.rd] < 2) {
+		next_pc = registers[dec_ex->instrc_d.rd];
 		busy_regs[15] = 1;
 	}
 
@@ -178,7 +180,8 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	// --------------------- EXECUTE ---------------------------
 
 	#ifdef DEBUG_ON
-	printf("core: %x, EXECUTE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
+	// printf("core: %x, EXECUTE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
+	printf("core: %x, EXECUTE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, dec_ex->instrc_q.opcode, dec_ex->instrc_q.rd, dec_ex->instrc_q.rs, dec_ex->instrc_q.rt, dec_ex->instrc_q.imm, dec_ex->instrc_q.pc);
 	#endif
 
 	ex_mem->data_d = execute_op(dec_ex->instrc_q, registers);
@@ -194,7 +197,8 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	opcode = ex_mem->instrc_q.opcode;
 
 	#ifdef DEBUG_ON
-	printf("core: %x, MEMORY START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_q.opcode, mem_wb->instrc_q.rd, mem_wb->instrc_q.rs, mem_wb->instrc_q.rt, mem_wb->instrc_q.imm, mem_wb->instrc_q.pc);
+	// printf("core: %x, MEMORY START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_q.opcode, mem_wb->instrc_q.rd, mem_wb->instrc_q.rs, mem_wb->instrc_q.rt, mem_wb->instrc_q.imm, mem_wb->instrc_q.pc);
+	printf("core: %x, MEMORY START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
 	#endif
 
 	if ((busy_regs[ex_mem->instrc_q.rd] == 1) & (opcode == sw)) {
@@ -202,13 +206,16 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		mem_wb->pc_d = -1;
 
 		next_pc = *pc; // decode the same instrc next clk
-		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
-
-		dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
-		dec_ex->pc_d = dec_ex->pc_q;
-
-		ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
-		ex_mem->pc_d = ex_mem->pc_q;
+		// fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
+//
+		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
+		// dec_ex->pc_d = dec_ex->pc_q;
+//
+		// ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
+		// ex_mem->pc_d = ex_mem->pc_q;
+		stall_reg(dec_ex);
+		stall_reg(fe_dec);
+		stall_reg(ex_mem);
 
 		#ifdef DEBUG_ON
 		printf("core: %x MEMORY sw wait for rd\n");
@@ -223,19 +230,27 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	// Handle stall
 	if (mem_rsp.stall == 1) {
+		puts("MEM ISSUED STALL");
 		mem_wb->instrc_d.opcode = stall;
 		next_pc = *pc; // decode the same instrc next clk
-		fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
-		fe_dec->pc_d = fe_dec->pc_q;
-
-		dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
-		ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
-	}
+		// fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
+		// fe_dec->pc_d = fe_dec->pc_q;
+//
+		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
+		// dec_ex->pc_d     = dec_ex->pc_q;
+		stall_reg(dec_ex);
+		stall_reg(fe_dec);
+        stall_reg(ex_mem);
+    }
 	#ifdef DEBUG_ON
 	printf("Core: %x, MEMORY END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_d.opcode, mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc);
 	#endif
 
 	// ---------------------- WRITE BACK -----------------------
+
+#ifdef DEBUG_ON
+	printf("Core: %x, WB START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_q.opcode, mem_wb->instrc_q.rd, mem_wb->instrc_q.rs, mem_wb->instrc_q.rt, mem_wb->instrc_q.imm, mem_wb->instrc_q.pc);
+#endif
 
 	opcode = mem_wb->instrc_q.opcode;
 	if (opcode != stall && opcode != beq && opcode != bne && opcode != blt && opcode != bgt && opcode != bge && opcode != ble && opcode != sw) { // no branch cmd or sw or stall
