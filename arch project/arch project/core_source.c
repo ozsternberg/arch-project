@@ -208,19 +208,19 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					next_state[core_id] = WaitForFlush; // A transaction is made, now wait for flash
 
     				}
-    				if(hit_type == kWrMiss) // If write miss - set bus_cmd to BusRdX
+                    else if(hit_type == kWrMiss) // If write miss - set bus_cmd to BusRdX
     				{
     					bus.bus_cmd = kBusRdX;
     					next_state[core_id] = WaitForFlush; // A transaction is made, now wait for flash
     				}
-    				if (hit_type == kWrHitShared) // If cache writeHit on shared data - set bus_cmd to kBusRdX to invalidate data on other caches
+                    else if (hit_type == kWrHitShared) // If cache writeHit on shared data - set bus_cmd to kBusRdX to invalidate data on other caches
     				{
     					bus.bus_cmd = kBusRdX;
     					entry_state[core_id] = Modified;
     					update_mem[index[core_id]][offset[core_id]] = data;
     				}
 
-    				if (hit_type == kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
+                    else if (hit_type == kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
     				{
     					bus.bus_cmd = kFlush;
     					bus.bus_data = dsram[index[core_id]][core_send_counter[core_id]];
@@ -323,6 +323,9 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
             else printf("Data is received from address - %d and the original address is - %d\n", bus.bus_addr, addr + core_receive_counter[core_id] - offset[core_id]);
 
     		break;
+        default:
+            puts("Unknown core state\n");
+            break;
     }
 
     bus_routine_rsp_s bus_routine_rsp = {bus, receive_done};
@@ -376,8 +379,8 @@ int execute_op(const instrc instrc, int registers[])
 	// NOTE: This function assumes that $imm has been loaded with the appropriate value
     int imm = instrc.imm;
 	int* rd = (instrc.rd == 1) ? &imm : &registers[instrc.rd];
-	int* rs = (instrc.rd == 1) ? &imm : &registers[instrc.rs];
-	int* rt = (instrc.rd == 1) ? &imm : &registers[instrc.rt];
+	int* rs = (instrc.rs == 1) ? &imm : &registers[instrc.rs];
+	int* rt = (instrc.rt == 1) ? &imm : &registers[instrc.rt];
 
 	switch (instrc.opcode)
 	{
@@ -512,4 +515,11 @@ FILE** create_trace_files() {
     }
 
     return files;
+}
+
+void stall_reg(register_line_s *reg)
+{
+    reg->instrc_d = reg->instrc_q; // handle memory to the same instrc next clk
+    reg->pc_d = reg->pc_q;
+    reg->data_d = reg->data_q;
 }

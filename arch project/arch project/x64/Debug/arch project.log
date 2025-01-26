@@ -1,14 +1,1 @@
-﻿  core.c
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(95,38): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(96,35): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(96,62): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,20): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,36): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,52): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,68): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,84): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,100): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(165,21): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(170,20): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(214,10): warning C4473: 'printf' : not enough arguments passed for format string
-  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe
+﻿  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe

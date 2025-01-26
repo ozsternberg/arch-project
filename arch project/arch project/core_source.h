@@ -13,7 +13,7 @@
 #define DEBUG_ON
 #endif
 
-#define TIMEOUT_ON
+//#define TIMEOUT_ON
 typedef enum
 {
 	mem_depth			= 4096,
@@ -94,6 +94,8 @@ instrc decode_line(const int line_dec, int registers[], int pc);
 void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]);
 
 void progress_reg(register_line_s *reg);
+
+void stall_reg(register_line_s *reg);
 
 void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exec, instrc mem, instrc wb, int registers[NUM_OF_REGS]);
 
