@@ -1,14 +1,35 @@
 ﻿  core.c
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(95,38): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(96,35): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(96,62): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,20): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,36): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,52): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,68): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,84): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(109,100): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(165,21): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(170,20): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(214,10): warning C4473: 'printf' : not enough arguments passed for format string
-  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe
+  core_sim.c
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(95,38): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(96,35): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(96,62): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(109,20): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(109,36): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(109,52): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(109,68): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(109,84): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(109,100): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(165,21): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(170,20): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core.c(214,10): warning C4473: 'printf' : not enough arguments passed for format string
+  core_source.c
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(483,48): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(483,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(483,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(484,78): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(484,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(484,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(485,76): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(485,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(485,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(486,75): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(486,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(486,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(487,74): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(487,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
+C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\core_source.c(487,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
+  main.c
+  sim_source.c
+  Generating Code...
+  sim.cpp
+  arch project.vcxproj -> C:\Users\mgk27\source\repos\arch-project1\arch project\x64\Debug\arch project.exe

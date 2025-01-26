@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommandArguments>example/imem0.txt example/imem1.txt example/imem2.txt example/imem3.txt example/memin.txt memout.txt</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>example/imem0.txt example/imem1.txt example/imem2.txt example/imem3.txt example/memin.txt memout.txt</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

@@ -167,8 +167,8 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		};
 	}
 
-	if (opcode == jal & busy_regs[dec_ex->instrc_d.rd] < 2) {
-		next_pc = registers[dec_ex->instrc_d.rd];
+	if (opcode == jal & busy_regs[dec_ex->instrc_d.rd] ) {
+		next_pc = (dec_ex->instrc_d.rd == 1) ? dec_ex->instrc_d.imm : registers[dec_ex->instrc_d.rd];
 		busy_regs[15] = 1;
 	}
 
