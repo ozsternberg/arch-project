@@ -30,10 +30,10 @@ typedef enum
 
 typedef enum
 {
-	Invalid,
-	Shared,
-	Exclusive,
-	Modified
+	Invalid   = 0,
+	Shared    = 1,
+	Exclusive = 2,
+	Modified  = 3
 } mesi_state_t;
 
 typedef enum
@@ -49,8 +49,8 @@ typedef enum
 {
 	kBusAvailable,
 	kBusWaitMem,
-	kBusRead,
-	kBusWaitFlush
+	kBusFlush,
+	kWaitCoreFlush
 } bus_state_t;
 
 typedef enum
@@ -138,5 +138,7 @@ const char **create_output_files(int argc, char *argv[], const char *output_file
 void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE]);
 
 void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]);
+
+const char *get_bus_cmd_name(bus_cmd_t cmd);
 
 #endif // SIM_H

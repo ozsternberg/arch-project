@@ -10,9 +10,9 @@ cache_addr_s parse_addr(int addr)
 	cache_addr_s cache_addr;
 	int tag_shift = SET_WIDTH + OFFSET_WIDTH;
 	int set_shift = OFFSET_WIDTH;
-	cache_addr.tag =    (unsigned int)((addr & 0x00FFF00) >> tag_shift);
-	cache_addr.set =    (unsigned int)(addr & 0xFF        >> set_shift);
-	cache_addr.offset = (unsigned int)(addr & 0x3);
+	cache_addr.tag =    (unsigned int)((addr & 0x000FFF00) >> tag_shift);
+	cache_addr.set =    (unsigned int)((addr & 0x000000FF) >> set_shift);
+	cache_addr.offset = (unsigned int)(addr & 0x00000003);
 	return cache_addr;
 }
 
@@ -42,17 +42,25 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 		if (core_id == gnt_core_id && priority_for_gnt == 1) continue;
 
 		core_cmd = core(core_id,0,bus_req,progress_clock,clk,argc,argv,mem);
-		if (core_cmd_rtr.bus_cmd == kHalt) return core_cmd; // If halt is issued we return the bus_req
+		if (core_cmd.bus_cmd == kHalt) return core_cmd; // If halt is issued we return the bus_req
 
 		// if (core_cmd == ) perror("Error - core returned NULL\n");
 
-    	if (core_cmd.bus_cmd == kFlush && priority_for_gnt == 0)  // We rely on cores that have modifed data to flush on read - that is the only thing we care about
+    	if (core_cmd.bus_cmd == kFlush && priority_for_gnt == 0 && core_cmd.bus_origid != main_mem_id)  // We rely on cores that have modifed data to flush on read - that is the only thing we care about
 		{
-			if (core_issued_flush) puts("Error - two cores flushed on the same time!\n");
+			if (core_issued_flush == 1)
+			{
+				puts("Error - two cores flushed on the same time!\n");
+			}
+
+			if (bus_req.bus_origid == main_mem_id)
+			{
+				printf("Core #%d tried to flush while the main mem was flushing!\n", core_id);
+			}
 			core_issued_flush = 1;
 			core_cmd_rtr = core_cmd;
 		}
-		else if  (core_cmd.bus_cmd == kFlush && priority_for_gnt == 1) printf("Error - core #%d issued flush while core #%d issued a req on its turn!\n", core_id, gnt_core_id); // For debugging purposes
+		else if  (core_cmd.bus_cmd == kFlush && (gnt == 1 || priority_for_gnt == 1)) printf("Error - core #%d issued flush while core #%d issued a req on its turn!\n", core_id, gnt_core_id); // For debugging purposes
 	}
 	return core_cmd_rtr;
 }
@@ -212,4 +220,21 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]) {
     }
 
     fclose(file);
+}
+
+const char* get_bus_cmd_name(bus_cmd_t cmd) {
+	switch (cmd) {
+		case kNoCmd:
+			return "No Command";
+		case kBusRd:
+			return "BusRd";
+		case kBusRdX:
+			return "BusRdX";
+		case kFlush:
+			return "Flush";
+		case kHalt:
+			return "Halt";
+		default:
+			return "Unknown";
+	}
 }

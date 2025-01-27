@@ -1,1 +1,9 @@
-﻿  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe
+﻿  core.c
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(117,25): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(117,41): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(117,57): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(117,73): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(117,89): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(117,105): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+C:\Users\Oz\source\repos\arch-project\arch project\arch project\core.c(236,10): warning C4473: 'printf' : not enough arguments passed for format string
+  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe

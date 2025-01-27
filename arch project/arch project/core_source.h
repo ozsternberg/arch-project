@@ -97,6 +97,10 @@ void progress_reg(register_line_s *reg);
 
 void stall_reg(register_line_s *reg);
 
+const char *opcode_to_string(opcode_t opcode);
+
+int get_reg_val(int reg, int registers[], int imm);
+
 void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exec, instrc mem, instrc wb, int registers[NUM_OF_REGS]);
 
 FILE **create_trace_files();
