@@ -66,7 +66,8 @@ typedef enum
 {
 	kIdle,
 	kWaitForGnt,
-	kWaitForFlush
+	kWaitForFlush,
+	kStop
 } cache_state_t;
 
 typedef struct

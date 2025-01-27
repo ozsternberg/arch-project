@@ -4,6 +4,7 @@
 // The dsram and tsram should be of only once core
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr, opcode_t op, int data, int progress_clk)
 {
+   
     if (op != lw && op != sw) {
         return (cache_query_rsp_s) { kHit, 0 };
     }
@@ -61,17 +62,19 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     cache_hit_t hit_type = cache_query_rsp.hit_type;
 
     int core_req_trans = op == sw || op == lw || *cache_state != kIdle ? 1 : 0;
-
+    
+    //if (op == halt) return (mem_rsp_s) {0, 0, bus};
+    if (op == stall && core_req_trans) perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
 	mem_rsp_s mem_rsp = {0, cache_query_rsp.data, bus_routine_rsp.bus_cmd};
 
-    cache_state_t next_cache_state = *cache_state;
+    cache_state_t next_cache_state = op == halt ? kStop : *cache_state;
 
     switch (*cache_state)
     {
         case kIdle:
             mem_rsp.stall = 0;
-            if (hit_type == kHit || core_req_trans == 0) break; // If hit or no req do nothing
+            if (hit_type == kHit || core_req_trans == 0 || op == halt) break; // If hit or no req do nothing
 
             // If gnt is 0, stall
             if (gnt == 0)
@@ -113,6 +116,10 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 
             if (bus_routine_rsp.data_rtn == 1)
             {
+                if (op == halt)
+				{
+                    perror("Halt arrived mid transaction!\n\n");
+				}
                 if (bus_routine_rsp.bus_cmd.bus_addr != addr)
                 {
                     printf("Data is received from wrong address\n");
@@ -121,6 +128,10 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
             }
 
             break;
+
+        case kStop:
+            mem_rsp.stall = 0;
+			break;
     }
 
     if (progress_clk == 1) *cache_state = next_cache_state;
@@ -294,7 +305,6 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     		bus.bus_addr = bus_addr[core_id] + core_send_counter[core_id];
     		if(progress_clock == 1)
     		{
-    			core_send_counter[core_id]++;
     			if(core_send_counter[core_id] == BLOCK_SIZE -1)
     			{
     				core_send_counter[core_id] = 0;
@@ -307,6 +317,8 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     			{
     				*core_state = Send;
     			}
+                core_send_counter[core_id]++;
+
     		}
 
     		break;

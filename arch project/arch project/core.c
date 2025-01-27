@@ -24,7 +24,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	int static error_flag = 0;
 	int static halt_core[NUM_CORES] = { 0 };
 	int static halt_in_fetch[NUM_CORES] = { 0 };
-
+	int static busy_reg_before = 0;
 	// Initialize the required _arrays and variables
 	int static pc_arr[NUM_CORES] = { 0 };
 	int static registers_arr[NUM_CORES][NUM_OF_REGS];
@@ -81,7 +81,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	#endif
 
 	// --------------------- DECODE ---------------------------
-
+	int dec_set_busy = 0;
 	dec_ex->instrc_d = decode_line(fe_dec->data_q, registers,fe_dec->pc_q);
 	dec_ex->pc_d = fe_dec->pc_q;
 
@@ -94,7 +94,8 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	{
 		halt_in_fetch[core_id] = 1;
 	}
-
+	
+	busy_reg_before = busy_regs[dec_ex->instrc_d.rd];
 	//NOTE: We handle Rd for SW at the mem stage
 
 	if ((busy_regs[dec_ex->instrc_d.rs] == 1 || busy_regs[dec_ex->instrc_d.rt] == 1) && opcode != jal) // Check rs,rt are valid (if opcode is jal don't need rs,rt)
@@ -185,6 +186,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	// If all Registers are ready and the op is not jal or branch we set rd to busy
 	else
 	{
+		dec_set_busy = 1;
 		busy_regs[dec_ex->instrc_d.rd] = dec_ex->instrc_d.rd > 1 ? 1 : 0;
 	}
 
@@ -228,12 +230,15 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 //
 		// ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
 		// ex_mem->pc_d = ex_mem->pc_q;
+
+		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
+		
 		stall_reg(dec_ex);
 		stall_reg(fe_dec);
 		stall_reg(ex_mem);
-
+		
 		#ifdef DEBUG_ON
-		printf("Core: %x MEMORY sw wait for rd\n");
+		printf("Core: %d MEMORY sw wait for rd\n", core_id);
 		#endif
 	}
 
@@ -254,9 +259,13 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 //
 		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
 		// dec_ex->pc_d     = dec_ex->pc_q;
+		
+		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
+
 		stall_reg(dec_ex);
 		stall_reg(fe_dec);
         stall_reg(ex_mem);
+
     }
 	#ifdef DEBUG_ON
 	printf("Core: %x, MEMORY END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x, Data(Hex): %x\n", core_id, opcode_to_string(mem_wb->instrc_d.opcode), mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc, mem_wb->data_d);

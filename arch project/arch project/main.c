@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
           priority = 1;
           progress_clock = 1;
 
-          printf("BUS | State: kBusWaitMem, Req Core: %d, Sending Core: %d, Address(dec): %d, Clk: %d\n", bus_req.bus_origid, core_cmd.bus_origid, bus_req.bus_addr,clk);
+          printf("BUS | State: kBusWaitMem, Req Core: %d, Sending Core: %d, Address(dec): %d, Clk: %d\n\n", bus_req.bus_origid, core_cmd.bus_origid, bus_req.bus_addr,clk);
 
           // Progress the cores and set flushing core as the one with the gnt, also update the bus req
           bus_req = cores(bus_req, priority, gnt, core_cmd.bus_origid, progress_clock, clk,argc,argv,mem_files);
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
         progress_clock = 1;
         priority = 1;
 
-        printf("BUS | State: kWaitCoreFlush, Req Core Id: %d, Send Core Id: &d, Send Counter: %d, Clk: %d\n\n", req_core, flushing_core_id ,mem_rd_counter, clk);
+        printf("BUS | State: kWaitCoreFlush, Req Core Id: %d, Send Core Id: %d, Send Counter: %d, Clk: %d\n\n", req_core, flushing_core_id ,mem_rd_counter, clk);
 
         bus_req = cores(bus_req, priority, gnt, flushing_core_id, progress_clock, clk,argc,argv,mem_files);
 
