@@ -96,7 +96,10 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	}
 	
 	busy_reg_before = busy_regs[dec_ex->instrc_d.rd];
-	//NOTE: We handle Rd for SW at the mem stage
+
+	//==============================================================
+	//IMPORTANT NOTE: We assume that the regs can only be read at decode stage so we need to check that rd is not busy for sw op
+	//==============================================================
 
 	if ((busy_regs[dec_ex->instrc_d.rs] == 1 || busy_regs[dec_ex->instrc_d.rt] == 1) && opcode != jal) // Check rs,rt are valid (if opcode is jal don't need rs,rt)
 	{
@@ -115,16 +118,16 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	}
 
 	// If Rs and Rt are valid we can proceed to check if branch resolution is needed
-	else if (opcode == beq | opcode == bne | opcode == blt | opcode == bgt | opcode == bge | opcode == ble | opcode == ble) { // branch
+	else if (opcode == beq || opcode == bne || opcode == blt || opcode == bgt || opcode == bge || opcode == ble || opcode == ble || opcode == sw) { // branch
 
 		if (busy_regs[dec_ex->instrc_d.rd])  // For branch resolution we need rd
 		{
+			printf("Op %s wait for rd: %d\n",opcode_to_string(dec_ex->instrc_d.opcode), dec_ex->instrc_d.rd);
 			dec_ex->instrc_d.opcode = stall; // inject stall to execute
 			dec_ex->pc_d = dec_ex->pc_q;
 
 			next_pc = *pc;     // decode the same instrc next clk
 			stall_reg(fe_dec); // decode the same instrc next clk
-			puts("Branch op wait for rs or rt");
 		}
 		else {
 			// branch resolution in decode stage (and handle sw)
@@ -163,6 +166,10 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 					next_pc = rd_val;
 				}
 				break;
+
+			case sw: // If op is sw we set no reg to busy
+				break;
+
 			default:
 				#ifdef DEBUG_ON
 				printf("non branch opcode in branch resolution: %d\n", instrct_d.opcode);
@@ -179,17 +186,19 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	{
 		next_pc = dec_ex->instrc_d.rd == 1 ? dec_ex->instrc_d.imm : registers[dec_ex->instrc_d.rd]; // Set the next pc to the value of the register or imm
 		busy_regs[15] = 1; // Set Ra to busy
-
-		// Removed contdion for not sw
 	}
-
-	// If all Registers are ready and the op is not jal or branch we set rd to busy
-	else
+	
+	// If all Registers are ready and the op is not jal, branch, or sw we set rd to busy
+	else if (opcode != sw) 
 	{
 		dec_set_busy = 1;
 		busy_regs[dec_ex->instrc_d.rd] = dec_ex->instrc_d.rd > 1 ? 1 : 0;
 	}
 
+	else {
+		puts("Something went wrong a sw op got here\n"); // For debugging, SW should be able to get here and should be reolved on the preivous if
+	}
+	// If op is sw we require rd to be ready only in the mem stage so we need only to check if it is in WB
 
 	#ifdef DEBUG_ON
 	printf("Core: %x, DECODE END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, opcode_to_string(dec_ex->instrc_d.opcode), dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm, dec_ex->instrc_d.pc);
@@ -220,9 +229,11 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	if ((busy_regs[ex_mem->instrc_q.rd] == 1) && (opcode == sw)) {
 
-		opcode = stall; // If Rd is not ready than we do not have the addr and so we need to stall the mem access
+		//NOTE: This should happen because we take care of this at decode and assume that the regs can only be read at decode stage
 
-		next_pc = *pc; // decode the same instrc next clk
+		//opcode = stall; // If Rd is not ready than we do not have the addr and so we need to stall the mem access
+
+		//next_pc = *pc; // decode the same instrc next clk
 		// fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
 //
 		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
@@ -231,11 +242,11 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		// ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
 		// ex_mem->pc_d = ex_mem->pc_q;
 
-		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
-		
-		stall_reg(dec_ex);
-		stall_reg(fe_dec);
-		stall_reg(ex_mem);
+		//if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
+		//
+		//stall_reg(dec_ex);
+		//stall_reg(fe_dec);
+		//stall_reg(ex_mem);
 		
 		#ifdef DEBUG_ON
 		printf("Core: %d MEMORY sw wait for rd\n", core_id);
@@ -243,7 +254,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	}
 
 	mem_rsp_s mem_rsp;
-	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, opcode, ex_mem->instrc_q.rd, progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
+	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
 	mem_wb->instrc_d = ex_mem->instrc_q;
 	mem_wb->instrc_d.opcode = opcode; // We need to stall if rd is busy on sw
 	mem_wb->data_d = opcode == lw ? mem_rsp.data : ex_mem->data_q; // If the op is lw we take the data from mem stage, if not we take the data from ex stage

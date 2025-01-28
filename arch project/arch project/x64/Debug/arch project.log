@@ -1,17 +1,2 @@
-﻿  core_source.c
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(522,48): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(522,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(522,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(523,78): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(523,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(523,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(524,76): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(524,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(524,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(525,75): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(525,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(525,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(526,74): warning C4047: ':': 'char [4]' differs in levels of indirection from 'int'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(526,19): warning C4477: 'fprintf' : format string '%03X' requires an argument of type 'unsigned int', but variadic argument 1 has type 'char *'
-C:\Users\Oz\source\repos\arch-project\arch project\arch project\core_source.c(526,19): warning C4313: 'fprintf': '%X' in format string conflicts with argument 1 of type 'char *'
+﻿  core.c
   arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe
