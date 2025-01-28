@@ -4,7 +4,7 @@
 // The dsram and tsram should be of only once core
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr, opcode_t op, int data, int progress_clk)
 {
-   
+
     if (op != lw && op != sw) {
         return (cache_query_rsp_s) { kHit, 0 };
     }
@@ -61,14 +61,21 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     cache_query_rsp_s cache_query_rsp = cache_query(dsram, tsram, addr, op, data, progress_clk);
     cache_hit_t hit_type = cache_query_rsp.hit_type;
 
-    int core_req_trans = op == sw || op == lw || *cache_state != kIdle ? 1 : 0;
-    
+    int core_req_trans = op == sw || op == lw ? 1 : 0;
+
+    if ((*cache_state != kIdle) && (core_req_trans == 0))
+    {
+        printf("Non mem opcode arrived in the middle of transaction\n");
+    }
     //if (op == halt) return (mem_rsp_s) {0, 0, bus};
-    if (op == stall && core_req_trans) perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
+    if (op == stall && core_req_trans)
+    {
+        perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
+    }
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
 	mem_rsp_s mem_rsp = {0, cache_query_rsp.data, bus_routine_rsp.bus_cmd};
 
-    cache_state_t next_cache_state = op == halt ? kStop : *cache_state;
+    cache_state_t next_cache_state = *cache_state;
 
     switch (*cache_state)
     {
@@ -120,7 +127,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 				{
                     perror("Halt arrived mid transaction!\n\n");
 				}
-                if (bus_routine_rsp.bus_cmd.bus_addr != addr)
+                if (bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC != addr & 0xFFFFFFFC)
                 {
                     printf("Data is received from wrong address\n");
                 }
@@ -254,7 +261,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					next_state[core_id] = Send;
     					core_send_counter[core_id] = 1;
     				}
-    				
+
     				if(progress_clock == 1)
     				{
     					entry[core_id]->state = entry_state[core_id];
@@ -518,13 +525,31 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
         exit(1);
     }
 
-    fprintf(file, "%d ", clk);
-    fprintf(file, "%03X ", fetch == -1 ? "---" : fetch);
-    fprintf(file, "%03X ", decode.opcode == stall || decode.pc == -1 ? "---" : decode.pc);
-    fprintf(file, "%03X ", exec.opcode == stall   || exec.pc == -1 ? "---" : exec.pc);
-    fprintf(file, "%03X ", mem.opcode == stall    || mem.pc == -1 ? "---" : mem.pc);
-    fprintf(file, "%03X ", wb.opcode == stall     || wb.pc == -1 ? "---" : wb.pc);
+	// Remove the commented lines
+    // fprintf(file, "%03X ", fetch == -1 ? "---" : fetch);
+    // fprintf(file, "%03X ", decode.opcode == stall || decode.pc == -1 ? "---" : decode.pc);
+    // fprintf(file, "%03X ", exec.opcode == stall   || exec.pc == -1 ? "---" : exec.pc);
+    // fprintf(file, "%03X ", mem.opcode == stall    || mem.pc == -1 ? "---" : mem.pc);
+    // fprintf(file, "%03X ", wb.opcode == stall     || wb.pc == -1 ? "---" : wb.pc);
 
+	char buffer[10]; // Adjust the size as needed
+
+    fprintf(file, "%d ", clk);
+
+	snprintf(buffer, sizeof(buffer), "%03X", fetch);
+	fprintf(file, "%s ", fetch == -1 ? "---" : buffer);
+
+	snprintf(buffer, sizeof(buffer), "%03X", decode.pc);
+	fprintf(file, "%s ", decode.opcode == stall || decode.opcode == halt ? "---" : buffer);
+
+	snprintf(buffer, sizeof(buffer), "%03X", exec.pc);
+	fprintf(file, "%s ", exec.opcode == stall || exec.opcode == halt ? "---" : buffer);
+
+	snprintf(buffer, sizeof(buffer), "%03X", mem.pc);
+	fprintf(file, "%s ", mem.opcode == stall || mem.opcode == halt ? "---" : buffer);
+
+	snprintf(buffer, sizeof(buffer), "%03X", wb.pc);
+	fprintf(file, "%s ", wb.opcode == stall || wb.opcode == halt ? "---" : buffer);
     for (int i = 2; i < 16; i++) {
         fprintf(file, "%08X ", registers[i]);
     }

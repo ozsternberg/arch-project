@@ -90,8 +90,10 @@ int main(int argc, char *argv[]) {
 
         // We listen to flush even without a gnt
         if (core_cmd.bus_cmd == kFlush) { // If we see another flush from core while waiting we update the
-          if (core_cmd.bus_addr != bus_req.bus_addr) printf("Error: Flush has been issued from core #%d to unread addr(dec): %d\n", core_cmd.bus_origid, core_cmd.bus_addr);
-
+            if (core_cmd.bus_addr != bus_req.bus_addr)
+            {
+                printf("Error: Flush has been issued from core #%d to unread addr(dec): %d\n", core_cmd.bus_origid, core_cmd.bus_addr);
+            }
           priority = 1;
           progress_clock = 1;
 
@@ -135,8 +137,10 @@ int main(int argc, char *argv[]) {
         priority = 0;
 
         core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk,argc,argv,mem_files);
-        if (memcmp(&bus_req, &core_cmd, sizeof(bus_cmd_s)) != 0) printf("Error - bus_req should not change when data returns from main mem!\n"); // bus_req should not change when data returns from main mem
-
+        if (memcmp(&bus_req, &core_cmd, sizeof(bus_cmd_s)) != 0)
+        {
+            printf("Error - bus_req should not change when data returns from main mem!\n"); // bus_req should not change when data returns from main mem
+        }
         if (mem_rd_counter == BLOCK_SIZE - 1) {
           bus_state = kBusAvailable;
           mem_rd_counter = 0;

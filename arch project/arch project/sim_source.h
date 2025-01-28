@@ -15,9 +15,7 @@
 #define MEM_RD_LATENCY 16 // Time until memory start returning the data
 #define MEM_FILE_SIZE  1024
 
-#ifndef DEBUG_ON
 #define DEBUG_ON
-#endif // !DEBUG_ON
 
 typedef enum
 {

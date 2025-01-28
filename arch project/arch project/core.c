@@ -30,10 +30,10 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	int static registers_arr[NUM_CORES][NUM_OF_REGS];
 	int static busy_regs_arr[NUM_CORES][NUM_OF_REGS] = { 0 };
 
-	register_line_s static fe_dec_arr[NUM_CORES] = {{0},0,0};
-	register_line_s static dec_ex_arr[NUM_CORES] = {{{stall}},0,0};
-	register_line_s static ex_mem_arr[NUM_CORES] = {{{stall}},0,0};
-	register_line_s static mem_wb_arr[NUM_CORES] = {{{stall}},0,0};
+	register_line_s static fe_dec_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	register_line_s static dec_ex_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	register_line_s static ex_mem_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	register_line_s static mem_wb_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
 
 	int *pc = &pc_arr[core_id];
 
@@ -74,6 +74,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	fe_dec->data_d = mem[core_id][*pc];
 	fe_dec->pc_d = *pc;
+	fe_dec->instrc_d.pc = *pc;
 
 	int next_pc = *pc + 1; // default
 	#ifdef DEBUG_ON
@@ -94,7 +95,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	{
 		halt_in_fetch[core_id] = 1;
 	}
-	
+
 	busy_reg_before = busy_regs[dec_ex->instrc_d.rd];
 
 	//==============================================================
@@ -187,9 +188,9 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		next_pc = dec_ex->instrc_d.rd == 1 ? dec_ex->instrc_d.imm : registers[dec_ex->instrc_d.rd]; // Set the next pc to the value of the register or imm
 		busy_regs[15] = 1; // Set Ra to busy
 	}
-	
+
 	// If all Registers are ready and the op is not jal, branch, or sw we set rd to busy
-	else if (opcode != sw) 
+	else if (opcode != sw)
 	{
 		dec_set_busy = 1;
 		busy_regs[dec_ex->instrc_d.rd] = dec_ex->instrc_d.rd > 1 ? 1 : 0;
@@ -247,7 +248,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		//stall_reg(dec_ex);
 		//stall_reg(fe_dec);
 		//stall_reg(ex_mem);
-		
+
 		#ifdef DEBUG_ON
 		printf("Core: %d MEMORY sw wait for rd\n", core_id);
 		#endif
@@ -270,7 +271,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 //
 		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
 		// dec_ex->pc_d     = dec_ex->pc_q;
-		
+
 		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
 
 		stall_reg(dec_ex);
@@ -324,7 +325,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 			printf("Core: %x, Clk: %d\n\n", core_id,clk);
 		#endif
 
-		append_trace_line(trace_files[core_id], clk, *pc, dec_ex->instrc_d, dec_ex->instrc_q,ex_mem->instrc_q, mem_wb->instrc_q, registers);
+		append_trace_line(trace_files[core_id], clk, halt_in_fetch[core_id] ? -1 : *pc, dec_ex->instrc_d, dec_ex->instrc_q,ex_mem->instrc_q, mem_wb->instrc_q, registers);
 
 		*pc = halt_in_fetch[core_id] == 0 ? (next_pc & 0x03FF) : *pc; // if halt dont progress pc, take only 10 lot bits from next_pc
 
