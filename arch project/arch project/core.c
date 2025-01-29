@@ -8,7 +8,7 @@
 bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int clk, int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE]) {
 
 	int static dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
-	tsram_entry static tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
+	static tsram_entry  tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
 	cache_state_t static cache_state[NUM_CORES];
 	core_state_t  static core_state[NUM_CORES];
 
@@ -22,16 +22,18 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	}
 
 	int static error_flag = 0;
-	int static halt[NUM_CORES] = { 0 };
-
+	int static halt_core[NUM_CORES] = { 0 };
+	int static halt_in_fetch[NUM_CORES] = { 0 };
+	int static busy_reg_before = 0;
 	// Initialize the required _arrays and variables
 	int static pc_arr[NUM_CORES] = { 0 };
 	int static registers_arr[NUM_CORES][NUM_OF_REGS];
 	int static busy_regs_arr[NUM_CORES][NUM_OF_REGS] = { 0 };
-	register_line_s static fe_dec_arr[NUM_CORES];
-	register_line_s static dec_ex_arr[NUM_CORES];
-	register_line_s static ex_mem_arr[NUM_CORES];
-	register_line_s static mem_wb_arr[NUM_CORES];
+
+	register_line_s static fe_dec_arr[NUM_CORES] = {{0},0,0};
+	register_line_s static dec_ex_arr[NUM_CORES] = {{{stall}},0,0};
+	register_line_s static ex_mem_arr[NUM_CORES] = {{{stall}},0,0};
+	register_line_s static mem_wb_arr[NUM_CORES] = {{{stall}},0,0};
 
 	int *pc = &pc_arr[core_id];
 
@@ -47,7 +49,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	register_line_s *dec_ex = &dec_ex_arr[core_id];
 	register_line_s *ex_mem = &ex_mem_arr[core_id];
 	register_line_s *mem_wb = &mem_wb_arr[core_id];
-	if (*pc > 0xFFF)
+	if (*pc > 0x00000FFF)
 	{
 		printf("pc is not in a valid range: %d, clk: %d\n", *pc, clk);
 		for (int i = 0; i < NUM_OF_REGS; i++)
@@ -79,79 +81,95 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	#endif
 
 	// --------------------- DECODE ---------------------------
-
+	int dec_set_busy = 0;
 	dec_ex->instrc_d = decode_line(fe_dec->data_q, registers,fe_dec->pc_q);
 	dec_ex->pc_d = fe_dec->pc_q;
 
 	#ifdef DEBUG_ON
-	printf("Core: %x, DECODE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, dec_ex->instrc_d.opcode, dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm, dec_ex->instrc_d.pc);
+	printf("Core: %x, DECODE START opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, opcode_to_string(dec_ex->instrc_d.opcode), dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm, dec_ex->instrc_d.pc);
 	#endif
 	opcode_t opcode = dec_ex->instrc_d.opcode;
 
-	if(opcode == kHalt)
+	if(dec_ex->instrc_d.opcode == halt)
 	{
-		next_pc = -1;
+		halt_in_fetch[core_id] = 1;
 	}
+	
+	busy_reg_before = busy_regs[dec_ex->instrc_d.rd];
 
-	if ((busy_regs[dec_ex->instrc_d.rs] & dec_ex->instrc_d.rs > 1) |
-		(busy_regs[dec_ex->instrc_d.rt] & dec_ex->instrc_d.rt > 1) & opcode != jal) { // check rs,rt are valid (if opcode is jal dont need rs,rt)
+	//==============================================================
+	//IMPORTANT NOTE: We assume that the regs can only be read at decode stage so we need to check that rd is not busy for sw op
+	//==============================================================
+
+	if ((busy_regs[dec_ex->instrc_d.rs] == 1 || busy_regs[dec_ex->instrc_d.rt] == 1) && opcode != jal) // Check rs,rt are valid (if opcode is jal don't need rs,rt)
+	{
+
 		dec_ex->instrc_d.opcode = stall; // inject stall to execute
 		dec_ex->pc_d = -1;
 
 		next_pc = *pc; // decode the same instrc next clk
 
 		stall_reg(fe_dec); // decode the same instrc next clk
-		//fe_dec->data_d = fe_dec->data_q; 
+		//fe_dec->data_d = fe_dec->data_q;
 		//fe_dec->pc_d = fe_dec->pc_q;
 		#ifdef DEBUG_ON
 		printf("core: %x, DECODE wait for rd or rs\n", core_id);
 		#endif
-	};
+	}
 
-	if (opcode == beq | opcode == bne | opcode == blt | opcode == bgt | opcode == bge | opcode == ble | opcode == ble) { // branch
-		if (busy_regs[dec_ex->instrc_d.rd] && dec_ex->instrc_d.rd > 1) {
+	// If Rs and Rt are valid we can proceed to check if branch resolution is needed
+	else if (opcode == beq || opcode == bne || opcode == blt || opcode == bgt || opcode == bge || opcode == ble || opcode == ble || opcode == sw) { // branch
+
+		if (busy_regs[dec_ex->instrc_d.rd])  // For branch resolution we need rd
+		{
+			printf("Op %s wait for rd: %d\n",opcode_to_string(dec_ex->instrc_d.opcode), dec_ex->instrc_d.rd);
 			dec_ex->instrc_d.opcode = stall; // inject stall to execute
-			dec_ex->pc_d = -1;
+			dec_ex->pc_d = dec_ex->pc_q;
 
-			next_pc = *pc; // decode the same instrc next clk
-			fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
-			fe_dec->pc_d = fe_dec->pc_q;
-
+			next_pc = *pc;     // decode the same instrc next clk
+			stall_reg(fe_dec); // decode the same instrc next clk
 		}
 		else {
-			// branch resoloution in decode stage (and handle sw)
+			// branch resolution in decode stage (and handle sw)
 			instrc instrct_d = dec_ex->instrc_d;
+			int rs_val = get_reg_val(instrct_d.rs, registers, instrct_d.imm);
+			int rt_val = get_reg_val(instrct_d.rt, registers, instrct_d.imm);
+			int rd_val = get_reg_val(instrct_d.rd, registers, instrct_d.imm);
 			switch (instrct_d.opcode) {
 			case beq:
-				if (registers[instrct_d.rs] == registers[instrct_d.rt]) {
-					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
+				if (rs_val == rt_val) {
+					next_pc = rd_val;
 				};
 				break;
 			case bne:
-				if (registers[instrct_d.rs] != registers[instrct_d.rt]) {
-					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
+				if (rs_val != rt_val) {
+					next_pc = rd_val;
 				}
 				break;
 			case blt:
-				if (registers[instrct_d.rs] < registers[instrct_d.rt]) {
-					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
+				if (rs_val < rt_val) {
+					next_pc = rd_val;
 				}
 				break;
 			case bgt:
-				if (registers[instrct_d.rs] > registers[instrct_d.rt]) {
-					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
+				if (rs_val > rt_val) {
+					next_pc = rd_val;
 				}
 				break;
 			case ble:
-				if (registers[instrct_d.rs] <= registers[instrct_d.rt]) {
-					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
+				if (rs_val <= rt_val) {
+					next_pc = rd_val;
 				}
 				break;
 			case bge:
-				if (registers[instrct_d.rs] >= registers[instrct_d.rt]) {
-					next_pc = (instrct_d.rd == 1) ? instrct_d.imm : registers[instrct_d.rd];
+				if (rs_val >= rt_val) {
+					next_pc = rd_val;
 				}
 				break;
+
+			case sw: // If op is sw we set no reg to busy
+				break;
+
 			default:
 				#ifdef DEBUG_ON
 				printf("non branch opcode in branch resolution: %d\n", instrct_d.opcode);
@@ -163,25 +181,33 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 			#endif
 		}
 	}
-	else {
-		if (opcode != jal && opcode != sw) {
-			busy_regs[dec_ex->instrc_d.rd] = 1;
-		};
+	// If the opcode is jal we only need to check if rd is busy
+	else if (opcode == jal && (busy_regs[dec_ex->instrc_d.rd] == 0))
+	{
+		next_pc = dec_ex->instrc_d.rd == 1 ? dec_ex->instrc_d.imm : registers[dec_ex->instrc_d.rd]; // Set the next pc to the value of the register or imm
+		busy_regs[15] = 1; // Set Ra to busy
+	}
+	
+	// If all Registers are ready and the op is not jal, branch, or sw we set rd to busy
+	else if (opcode != sw) 
+	{
+		dec_set_busy = 1;
+		busy_regs[dec_ex->instrc_d.rd] = dec_ex->instrc_d.rd > 1 ? 1 : 0;
 	}
 
-	if (opcode == jal && busy_regs[dec_ex->instrc_d.rd] < 2) {
-		next_pc = registers[dec_ex->instrc_d.rd];
-		busy_regs[15] = 1;
+	else {
+		puts("Something went wrong a sw op got here\n"); // For debugging, SW should be able to get here and should be reolved on the preivous if
 	}
+	// If op is sw we require rd to be ready only in the mem stage so we need only to check if it is in WB
 
 	#ifdef DEBUG_ON
-	printf("core: %x, DECODE END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, dec_ex->instrc_d.opcode, dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm, dec_ex->instrc_d.pc);
+	printf("Core: %x, DECODE END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, opcode_to_string(dec_ex->instrc_d.opcode), dec_ex->instrc_d.rd, dec_ex->instrc_d.rs, dec_ex->instrc_d.rt, dec_ex->instrc_d.imm, dec_ex->instrc_d.pc);
 	#endif
 	// --------------------- EXECUTE ---------------------------
 
 	#ifdef DEBUG_ON
 	// printf("core: %x, EXECUTE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
-	printf("core: %x, EXECUTE START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, dec_ex->instrc_q.opcode, dec_ex->instrc_q.rd, dec_ex->instrc_q.rs, dec_ex->instrc_q.rt, dec_ex->instrc_q.imm, dec_ex->instrc_q.pc);
+	printf("Core: %x, EXECUTE START opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, opcode_to_string(dec_ex->instrc_q.opcode), dec_ex->instrc_q.rd, dec_ex->instrc_q.rs, dec_ex->instrc_q.rt, dec_ex->instrc_q.imm, dec_ex->instrc_q.pc);
 	#endif
 
 	ex_mem->data_d = execute_op(dec_ex->instrc_q, registers);
@@ -189,7 +215,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	ex_mem->pc_d = dec_ex->pc_q;
 
 	#ifdef DEBUG_ON
-	printf("core: %x, EXECUTE END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, res: %x, pc: %x\n", core_id, ex_mem->instrc_d.opcode, ex_mem->instrc_d.rd, ex_mem->instrc_d.rs, ex_mem->instrc_d.rt, ex_mem->instrc_d.imm, ex_mem->data_d, ex_mem->instrc_d.pc);
+	printf("Core: %x, EXECUTE END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, res: %x, pc: %x\n", core_id, opcode_to_string(ex_mem->instrc_d.opcode), ex_mem->instrc_d.rd, ex_mem->instrc_d.rs, ex_mem->instrc_d.rt, ex_mem->instrc_d.imm, ex_mem->data_d, ex_mem->instrc_d.pc);
 	#endif
 
 	// -------------------- MEMORY -----------------------------
@@ -198,14 +224,16 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	#ifdef DEBUG_ON
 	// printf("core: %x, MEMORY START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_q.opcode, mem_wb->instrc_q.rd, mem_wb->instrc_q.rs, mem_wb->instrc_q.rt, mem_wb->instrc_q.imm, mem_wb->instrc_q.pc);
-	printf("core: %x, MEMORY START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
+	printf("Core: %x, MEMORY START opcode: %s, rd: %x, rs: %x, rt: %x, imm(dec): %d, pc: %x\n", core_id, opcode_to_string(ex_mem->instrc_q.opcode), ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
 	#endif
 
-	if ((busy_regs[ex_mem->instrc_q.rd] == 1) & (opcode == sw)) {
-		mem_wb->instrc_d.opcode = stall;
-		mem_wb->pc_d = -1;
+	if ((busy_regs[ex_mem->instrc_q.rd] == 1) && (opcode == sw)) {
 
-		next_pc = *pc; // decode the same instrc next clk
+		//NOTE: This should happen because we take care of this at decode and assume that the regs can only be read at decode stage
+
+		//opcode = stall; // If Rd is not ready than we do not have the addr and so we need to stall the mem access
+
+		//next_pc = *pc; // decode the same instrc next clk
 		// fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
 //
 		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
@@ -213,19 +241,23 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 //
 		// ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
 		// ex_mem->pc_d = ex_mem->pc_q;
-		stall_reg(dec_ex);
-		stall_reg(fe_dec);
-		stall_reg(ex_mem);
 
+		//if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
+		//
+		//stall_reg(dec_ex);
+		//stall_reg(fe_dec);
+		//stall_reg(ex_mem);
+		
 		#ifdef DEBUG_ON
-		printf("core: %x MEMORY sw wait for rd\n");
+		printf("Core: %d MEMORY sw wait for rd\n", core_id);
 		#endif
 	}
 
 	mem_rsp_s mem_rsp;
-	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, ex_mem->instrc_q.opcode, ex_mem->instrc_q.rd, progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
+	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
 	mem_wb->instrc_d = ex_mem->instrc_q;
-	mem_wb->data_d = mem_rsp.data;
+	mem_wb->instrc_d.opcode = opcode; // We need to stall if rd is busy on sw
+	mem_wb->data_d = opcode == lw ? mem_rsp.data : ex_mem->data_q; // If the op is lw we take the data from mem stage, if not we take the data from ex stage
 	mem_wb->pc_d = ex_mem->pc_q;
 
 	// Handle stall
@@ -238,38 +270,47 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 //
 		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
 		// dec_ex->pc_d     = dec_ex->pc_q;
+		
+		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
+
 		stall_reg(dec_ex);
 		stall_reg(fe_dec);
         stall_reg(ex_mem);
+
     }
 	#ifdef DEBUG_ON
-	printf("Core: %x, MEMORY END opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_d.opcode, mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc);
+	printf("Core: %x, MEMORY END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x, Data(Hex): %x\n", core_id, opcode_to_string(mem_wb->instrc_d.opcode), mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc, mem_wb->data_d);
 	#endif
 
 	// ---------------------- WRITE BACK -----------------------
 
 #ifdef DEBUG_ON
-	printf("Core: %x, WB START opcode: %x, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x\n", core_id, mem_wb->instrc_q.opcode, mem_wb->instrc_q.rd, mem_wb->instrc_q.rs, mem_wb->instrc_q.rt, mem_wb->instrc_q.imm, mem_wb->instrc_q.pc);
+	printf("Core: %x, WB START opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x, Data(Hex): %x\n", core_id, opcode_to_string(mem_wb->instrc_q.opcode), mem_wb->instrc_q.rd, mem_wb->instrc_q.rs, mem_wb->instrc_q.rt, mem_wb->instrc_q.imm, mem_wb->instrc_q.pc, mem_wb->data_q);
 #endif
 
 	opcode = mem_wb->instrc_q.opcode;
-	if (opcode != stall && opcode != beq && opcode != bne && opcode != blt && opcode != bgt && opcode != bge && opcode != ble && opcode != sw) { // no branch cmd or sw or stall
+	if (opcode != stall && opcode != beq && opcode != bne && opcode != blt && opcode != bgt && opcode != bge && opcode != ble && opcode != sw && opcode != jal) { // no branch cmd or sw or stall
 		registers[mem_wb->instrc_q.rd] = mem_wb->data_q;
 		busy_regs[mem_wb->instrc_q.rd] = 0;
+
+		//  Make sure that 0 and 1 are always free
+		busy_regs[0] = 0;
+		busy_regs[1] = 0;
+
 		#ifdef DEBUG_ON
-		printf("core: %x, WB address: %x, data: %x\n", core_id, mem_wb->instrc_q.rd, mem_wb->data_q);
+		printf("Core: %x, WB address: %x, data: %x\n", core_id, mem_wb->instrc_q.rd, mem_wb->data_q);
 		#endif
 	}
-	if (opcode == jal) {
-		registers[15] = *pc + 1;
+	else if (opcode == jal) {
+		registers[15] = mem_wb->instrc_q.pc + 1;
 		busy_regs[15] = 0;
 	}
 
-	if ((opcode == kHalt || error_flag == 1) && halt[core_id] == 0) {
+	if ((opcode == halt || error_flag == 1) && halt_core[core_id] == 0) {
 		#ifdef DEBUG_ON
 		printf("Core: %x, HALT\n", core_id);
 		#endif
-		halt[core_id] = 1;
+		halt_core[core_id] = 1;
 		store_regs_to_file(core_id, registers);
 		fclose(trace_files[core_id]);
 		store_dsram_to_file(core_id, dsram[core_id]);
@@ -278,14 +319,14 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	// ---------------------------------------------------------
 
-	if (progress_clk == 1 && halt[core_id] == 0) {
+	if (progress_clk == 1 && halt_core[core_id] == 0) {
 		#ifdef DEBUG_ON
 			printf("Core: %x, Clk: %d\n\n", core_id,clk);
 		#endif
 
 		append_trace_line(trace_files[core_id], clk, *pc, dec_ex->instrc_d, dec_ex->instrc_q,ex_mem->instrc_q, mem_wb->instrc_q, registers);
 
-		*pc = *pc >= 0 ? next_pc : *pc; // if halt dont progress pc
+		*pc = halt_in_fetch[core_id] == 0 ? (next_pc & 0x03FF) : *pc; // if halt dont progress pc, take only 10 lot bits from next_pc
 
         progress_reg(fe_dec);
 		progress_reg(dec_ex);
@@ -305,7 +346,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	// Check if all entries in halt are one
 	int all_halted = 1;
 	for (int i = 0; i < NUM_CORES; i++) {
-		if (halt[i] != 1) {
+		if (halt_core[i] != 1) {
 			all_halted = 0;
 			break;
 		}

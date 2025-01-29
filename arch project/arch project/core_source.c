@@ -4,8 +4,9 @@
 // The dsram and tsram should be of only once core
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr, opcode_t op, int data, int progress_clk)
 {
+   
     if (op != lw && op != sw) {
-        // Handle no sw/lw
+        return (cache_query_rsp_s) { kHit, 0 };
     }
     cache_addr_s cache_addr = parse_addr(addr);
 
@@ -57,34 +58,38 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 
 mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id)
 {
-    cache_query_rsp_s cache_query_rsp = cache_query(dsram,tsram,addr,op,data,progress_clk);
+    cache_query_rsp_s cache_query_rsp = cache_query(dsram, tsram, addr, op, data, progress_clk);
     cache_hit_t hit_type = cache_query_rsp.hit_type;
 
     int core_req_trans = op == sw || op == lw || *cache_state != kIdle ? 1 : 0;
-
+    
+    //if (op == halt) return (mem_rsp_s) {0, 0, bus};
+    if (op == stall && core_req_trans) perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
-	mem_rsp_s mem_rsp = {cache_query_rsp.data, 0, bus_routine_rsp.bus_cmd};
+	mem_rsp_s mem_rsp = {0, cache_query_rsp.data, bus_routine_rsp.bus_cmd};
+
+    cache_state_t next_cache_state = op == halt ? kStop : *cache_state;
 
     switch (*cache_state)
     {
         case kIdle:
             mem_rsp.stall = 0;
-            if (hit_type == kHit || core_req_trans == 0) break; // If hit or no req do nothing
+            if (hit_type == kHit || core_req_trans == 0 || op == halt) break; // If hit or no req do nothing
 
             // If gnt is 0, stall
             if (gnt == 0)
             {
                 mem_rsp.stall = 1;
-                *cache_state = kWaitForGnt;
+                next_cache_state = kWaitForGnt;
                 break;
             }
 
-            if (hit_type == kWrHitShared) break; //If gnt == 1 and hit is shared do stay Idle
+            if (hit_type == kWrHitShared) break; //If gnt == 1 and hit is shared stay Idle
 
-            else // If gnt == 1 and miss wait for flush or send
+            else // If gnt == 1 and miss, wait for flush or send
             {
                 mem_rsp.stall = 1;
-                *cache_state = kWaitForFlush;
+                next_cache_state = kWaitForFlush;
                 break;
             }
 
@@ -94,13 +99,14 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 
             if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared do stay Idle
             {
-                *cache_state = kIdle;
+                mem_rsp.stall = 0;
+                next_cache_state = kIdle;
                 break;
             }
 
             else // If gnt == 1 and miss, wait for flush receive or send
             {
-                *cache_state = kWaitForFlush;
+                next_cache_state = kWaitForFlush;
                 break;
             }
 
@@ -110,15 +116,26 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 
             if (bus_routine_rsp.data_rtn == 1)
             {
+                if (op == halt)
+				{
+                    perror("Halt arrived mid transaction!\n\n");
+				}
                 if (bus_routine_rsp.bus_cmd.bus_addr != addr)
                 {
                     printf("Data is received from wrong address\n");
                 }
-                *cache_state = kIdle;
+                next_cache_state = kIdle;
             }
 
             break;
+
+        case kStop:
+            mem_rsp.stall = 0;
+			break;
     }
+
+    if (progress_clk == 1) *cache_state = next_cache_state;
+
     return mem_rsp;
 }
 
@@ -134,11 +151,11 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     static int index[NUM_CORES];
     static int tag[NUM_CORES];
     static int bus_addr[NUM_CORES];
-    static tsram_entry * entry[NUM_CORES];
-    static core_state_t next_state[NUM_CORES];
+    static tsram_entry* entry[NUM_CORES] = { 0 };
+    static core_state_t next_state[NUM_CORES] = { Idle };
     static mesi_state_t entry_state[NUM_CORES];
 
-    static int flush_done = 0; // Raise signal when flush is done
+    int flush_done = 0; // Raise signal when flush is done
 
     // need to handle address
     // need to handle synchronization
@@ -148,20 +165,25 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     // Bus routine
 	int receive_done = 0;
 
+    if (gnt == 1 && *core_state != Idle)
+    {
+        printf("Error - core #%d is not idle but received gnt\n", core_id);
+    }
+
 	switch (*core_state){
     	case Idle:
 
     		if(gnt == 0)
     		{
-    			bus_addr[core_id] = bus.bus_addr;
+    			bus_addr[core_id] = bus.bus_addr & 0xFFFFFFFC;
     			// Split bus address to tsram and dsram parameters
     			offset[core_id] = parse_addr(bus_addr[core_id]).offset;
                 index[core_id] = parse_addr(bus_addr[core_id]).set;
     			tag[core_id] = parse_addr(bus_addr[core_id]).tag;
     			entry[core_id] = &tsram[index[core_id]];
     			next_state[core_id] = Idle;
-
-    			if((entry[core_id]->tag == tag[core_id]) && (entry[core_id]->state =! Invalid)) // Check if passive hit
+                entry_state[core_id] = entry[core_id]->state;
+    			if((entry[core_id]->tag == tag[core_id]) && (entry[core_id]->state != Invalid)) // Check if passive hit
     			{
     				if ((bus.bus_cmd == kBusRdX) || (bus.bus_cmd == kBusRd))
     				{
@@ -191,18 +213,23 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     		if(gnt == 1)  // check for transaction
     		{
     			bus.bus_origid = core_id; // Set bus_origid to core_id
+                bus.bus_share  = 0;
+                bus.bus_data   = 0;
+                bus.bus_addr   = 0;
     			if(core_req_trans == 1)
     			{
-    				bus.bus_addr = addr; // save a copy of the trans address
+    				bus.bus_addr = addr & 0xFFFFFFFC; // save a copy of the aligned trans address
+                    bus_addr[core_id] = bus.bus_addr;
     				// Split bus address to tsram and dsram parameters
     				offset[core_id] = parse_addr(bus.bus_addr).offset;
     				index[core_id] = parse_addr(bus.bus_addr).set;
     				tag[core_id] = parse_addr(bus.bus_addr).tag;
     				entry[core_id] = &tsram[index[core_id]];
     				entry_state[core_id] = entry[core_id]->state;
-					int (*update_mem)[BLOCK_SIZE] = dsram;
+                    next_state[core_id] = Idle;
+					int update_mem = dsram[index[core_id]][offset[core_id]];
 
-    				if(hit_type == kRdMiss)  // If read miss- set bus_cmd to BusRd
+    				if(hit_type == kRdMiss)  // If read miss - set bus_cmd to BusRd
     				{
     					bus.bus_cmd = kBusRd;
     					next_state[core_id] = WaitForFlush; // A transaction is made, now wait for flash
@@ -217,26 +244,23 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				{
     					bus.bus_cmd = kBusRdX;
     					entry_state[core_id] = Modified;
-    					update_mem[index[core_id]][offset[core_id]] = data;
+    					update_mem = data;
     				}
 
                     else if (hit_type == kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
     				{
     					bus.bus_cmd = kFlush;
-    					bus.bus_data = dsram[index[core_id]][core_send_counter[core_id]];
+    					bus.bus_data = dsram[index[core_id]][0];
     					next_state[core_id] = Send;
     					core_send_counter[core_id] = 1;
     				}
-    				else
-    				{
-    					printf("Transaction is made, but no transaction is required\n");
-    				}
+    				
     				if(progress_clock == 1)
     				{
     					entry[core_id]->state = entry_state[core_id];
     					*core_state = next_state[core_id];
     					entry[core_id]->tag = tag[core_id];
-    					dsram[index[core_id]][offset[core_id]] = update_mem[index[core_id]][offset[core_id]];
+    					dsram[index[core_id]][offset[core_id]] = update_mem;
     				}
 
     			}
@@ -254,18 +278,20 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     	case WaitForFlush:
 
     		next_state[core_id] = WaitForFlush;
+            cache_addr_s incoming_addr = parse_addr(bus.bus_addr);
     		if(bus.bus_cmd == kFlush)
     		{
-    			if(bus.bus_addr != (addr - offset[core_id]))
+    			if(bus.bus_addr != (addr & 0xFFFFFFFC))
     			{
     				printf("Data is Received from wrong address\n");
     			}
     			next_state[core_id] = Receive;
-    			core_receive_counter[core_id] = 0;
+    			core_receive_counter[core_id] = 1;
     		}
     		if(progress_clock == 1)
     		{
     			*core_state = next_state[core_id];
+                dsram[incoming_addr.set][incoming_addr.offset] = bus.bus_data;
     		}
     		break;
 
@@ -276,10 +302,9 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     		bus.bus_origid = core_id ;
     		bus.bus_cmd = kFlush;
     		bus.bus_data = dsram[index[core_id]][core_send_counter[core_id]];
-    		bus.bus_addr = bus_addr[core_id] + core_send_counter[core_id] - offset[core_id];
+    		bus.bus_addr = bus_addr[core_id] + core_send_counter[core_id];
     		if(progress_clock == 1)
     		{
-    			core_send_counter[core_id]++;
     			if(core_send_counter[core_id] == BLOCK_SIZE -1)
     			{
     				core_send_counter[core_id] = 0;
@@ -292,16 +317,22 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     			{
     				*core_state = Send;
     			}
+                core_send_counter[core_id]++;
+
     		}
 
     		break;
 
     	case Receive:
-    		if(bus.bus_addr == (addr + core_receive_counter[core_id] - offset[core_id]) && progress_clock == 1)
+            if ((addr & 0xFFFFFFFC) != bus_addr[core_id])
+            {
+                printf("The expected aligned addr is %d and the saved aligned addr is %d\n", addr & 0xFFFFFFFC, bus_addr[core_id]); // Sanity check
+            }
+            if (bus.bus_addr == ((addr & 0xFFFFFFFC) + core_receive_counter[core_id]))
     		{
-    			receive_done = 0;
+                if (progress_clock == 0) break;
+
     			dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
-    			core_receive_counter[core_id]++;
 
     			if(core_receive_counter[core_id] == BLOCK_SIZE -1)
     			{
@@ -314,13 +345,15 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					entry[core_id]->state = Shared; // If another cache asserts shared set entry[core_id] to shared
     				}
     				core_receive_counter[core_id] = 0;
-    				receive_done = 1;
+    				flush_done = 1;
     				*core_state = Idle;
     				break;
     			}
+                core_receive_counter[core_id]++;
+
     		}
 
-            else printf("Data is received from address - %d and the original address is - %d\n", bus.bus_addr, addr + core_receive_counter[core_id] - offset[core_id]);
+            else printf("Data is received from address - %d and the original address is - %d\n", bus.bus_addr, addr + core_receive_counter[core_id]);
 
     		break;
         default:
@@ -328,22 +361,22 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
             break;
     }
 
-    bus_routine_rsp_s bus_routine_rsp = {bus, receive_done};
+    bus_routine_rsp_s bus_routine_rsp = {bus, flush_done};
     return bus_routine_rsp;
 };
 
 
 int get_signed_imm(const int imm) {
-	int bit_mask = 0x00080000; // Mask where only the 19th bit is 1
+	int bit_mask = 0x000800; // Mask where only the 12th bit is 1
 	if (imm & bit_mask)
 	{
-		// If the sign bit (19th bit) is set, sign-extend to 32 bits
-		int signed_imm = (0xFFF00000 | imm);
+		// If the sign bit (12th bit) is set, sign-extend to 32 bits
+		int signed_imm = (0xFFFFF000 | imm);
 		return signed_imm;
 	}
 
 	// If the sign bit is not set, return the immediate value as it is
-	int signed_imm = 0x000FFFFF & imm;
+	int signed_imm = 0x00000FFF & imm;
 	return signed_imm;
 
 
@@ -411,7 +444,10 @@ int execute_op(const instrc instrc, int registers[])
 	case stall:
 		return 0;
 	default:
-		printf("Unknown opcode: %d\n", instrc.opcode);
+        if (instrc.opcode > 20 || instrc.opcode < -1)
+        {
+            printf("Unknown opcode: %d\n", instrc.opcode);
+        }
 		return 0;
 		break;
 	}
@@ -522,4 +558,41 @@ void stall_reg(register_line_s *reg)
     reg->instrc_d = reg->instrc_q; // handle memory to the same instrc next clk
     reg->pc_d = reg->pc_q;
     reg->data_d = reg->data_q;
+}
+
+
+const char* opcode_to_string(opcode_t opcode) {
+    switch (opcode) {
+        case add: return "add";
+        case sub: return "sub";
+        case and: return "and";
+        case or: return "or";
+        case xor: return "xor";
+        case mul: return "mul";
+        case sll: return "sll";
+        case sra: return "sra";
+        case srl: return "srl";
+        case beq: return "beq";
+        case bne: return "bne";
+        case blt: return "blt";
+        case bgt: return "bgt";
+        case ble: return "ble";
+        case bge: return "bge";
+        case jal: return "jal";
+        case lw: return "lw";
+        case sw: return "sw";
+        case halt: return "halt";
+        case stall: return "stall";
+        default: return "unknown";
+    }
+}
+
+int get_reg_val(int reg, int registers[], int imm) {
+	if (reg == 0) {
+		return 0;
+	}
+	if (reg == 1) {
+		return imm;
+	}
+	return registers[reg];
 }
