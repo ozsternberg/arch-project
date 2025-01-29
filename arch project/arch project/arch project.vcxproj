@@ -129,6 +129,7 @@
   <ItemGroup>
     <ClInclude Include="core_sim.h" />
     <ClInclude Include="sim.h" />
+    <ClInclude Include="sim_source.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core.c" />
@@ -137,6 +138,37 @@
     <ClCompile Include="main.c" />
     <ClCompile Include="sim.cpp" />
     <ClCompile Include="sim_source.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="example\imem0.asm" />
+    <None Include="example\imem1.asm" />
+    <None Include="example\imem2.asm" />
+    <None Include="example\imem3.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="bustrace.txt" />
+    <Text Include="core0trace.txt" />
+    <Text Include="core1trace.txt" />
+    <Text Include="core2trace.txt" />
+    <Text Include="core3trace.txt" />
+    <Text Include="dsram0.txt" />
+    <Text Include="dsram1.txt" />
+    <Text Include="dsram2.txt" />
+    <Text Include="dsram3.txt" />
+    <Text Include="example\imem0.txt" />
+    <Text Include="example\imem1.txt" />
+    <Text Include="example\imem2.txt" />
+    <Text Include="example\imem3.txt" />
+    <Text Include="example\memin.txt" />
+    <Text Include="memout.txt" />
+    <Text Include="regout0.txt" />
+    <Text Include="regout1.txt" />
+    <Text Include="regout2.txt" />
+    <Text Include="regout3.txt" />
+    <Text Include="tsram0.txt" />
+    <Text Include="tsram1.txt" />
+    <Text Include="tsram2.txt" />
+    <Text Include="tsram3.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

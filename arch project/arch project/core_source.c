@@ -505,7 +505,7 @@ void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
         exit(1);
     }
 
-    for (int i = 0; i < NUM_OF_REGS; i++) {
+    for (int i = 2; i < NUM_OF_REGS; i++) {
         fprintf(file, "%08X\n", regs[i]); // Write each int as an 8-digit hex number
     }
 
@@ -540,16 +540,16 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
 	fprintf(file, "%s ", fetch == -1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", decode.pc);
-	fprintf(file, "%s ", decode.opcode == stall || decode.opcode == halt ? "---" : buffer);
+	fprintf(file, "%s ", (decode.opcode == stall & decode.pc == fetch) || decode.opcode == halt || clk < 1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", exec.pc);
-	fprintf(file, "%s ", exec.opcode == stall || exec.opcode == halt ? "---" : buffer);
+	fprintf(file, "%s ", (exec.opcode == stall & exec.pc == decode.pc)|| exec.opcode == halt || clk < 2 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", mem.pc);
-	fprintf(file, "%s ", mem.opcode == stall || mem.opcode == halt ? "---" : buffer);
+	fprintf(file, "%s ", (mem.opcode == stall & mem.pc == exec.pc) || mem.opcode == halt || clk < 3 ?  "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", wb.pc);
-	fprintf(file, "%s ", wb.opcode == stall || wb.opcode == halt ? "---" : buffer);
+	fprintf(file, "%s ", (wb.opcode == stall & wb.pc == mem.pc) || wb.opcode == halt || clk < 4 ? "---" : buffer);
     for (int i = 2; i < 16; i++) {
         fprintf(file, "%08X ", registers[i]);
     }

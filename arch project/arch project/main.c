@@ -38,6 +38,14 @@ int main(int argc, char *argv[]) {
   static int clk = 0;
   static int req_core = -1;
 
+  FILE* bus_trace = fopen(output_files[9], "w"); // Open in write mode to clear contents
+  if (bus_trace != NULL) {
+      fclose(bus_trace);
+  }
+  else {
+      printf("Error resetting %s", output_files[9]);
+  }
+
   // Various flags
   static int progress_clock = 0;
   static int gnt = 0;
@@ -45,7 +53,7 @@ int main(int argc, char *argv[]) {
   static bus_origid_t flushing_core_id;
   static bus_cmd_s core_cmd;
 
-  while (1) {
+  while (clk<10) {
     switch (bus_state) {
       case kBusAvailable:
         gnt = 1;
@@ -66,11 +74,12 @@ int main(int argc, char *argv[]) {
           mem_wait_counter = 0;
           gnt = 0;
           shared = bus_req.bus_share;
-        } else if (bus_req.bus_cmd == kFlush) {
-          bus_state = kWaitCoreFlush;
-          main_mem[bus_req.bus_addr] = bus_req.bus_data;
-          mem_rd_counter = 1;
-          flushing_core_id = bus_req.bus_origid;
+        }
+        else if (bus_req.bus_cmd == kFlush) {
+            bus_state = kWaitCoreFlush;
+            main_mem[bus_req.bus_addr] = bus_req.bus_data;
+            mem_rd_counter = 1;
+            flushing_core_id = bus_req.bus_origid;
         }
         break;
 
@@ -78,7 +87,7 @@ int main(int argc, char *argv[]) {
         progress_clock = 0;
         priority = 0;
         gnt = 0;
-
+        bus_req.bus_cmd = 0;
         printf("BUS | State: kBusWaitMem, Req Core Id: %d, Waiting Counter: %d, Clk: %d\n\n", bus_req.bus_origid, mem_wait_counter,clk);
 
         if (bus_req.bus_cmd != kBusRd && bus_req.bus_cmd != kBusRdX)
@@ -87,7 +96,7 @@ int main(int argc, char *argv[]) {
         }
         // Check for flush without progressing the clock and keeping the previous bus req safe
         core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk,argc,argv,mem_files);
-
+        
         // We listen to flush even without a gnt
         if (core_cmd.bus_cmd == kFlush) { // If we see another flush from core while waiting we update the
             if (core_cmd.bus_addr != bus_req.bus_addr)
@@ -176,13 +185,15 @@ int main(int argc, char *argv[]) {
         break;
     }
     printf("BUS | Cmd: %s, OrigID: %d, Addr(Dec): %d, Data(Hex): %X, Share: %d, Clk: %d\n\n", get_bus_cmd_name(bus_req.bus_cmd), bus_req.bus_origid,bus_req.bus_addr, bus_req.bus_data, bus_req.bus_share,clk);
+    append_bus_trace_line(output_files[9], clk, bus_req.bus_origid, bus_req.bus_cmd, bus_req.bus_addr, bus_req.bus_data, bus_req.bus_share, clk);
+
     clk++;
     if (bus_req.bus_cmd == kHalt) break; // If halt is issued we break the loop and exit
   }
 
   // Close the files
   char memout_name[256] = {0};
-  snprintf(memout_name, sizeof(memout_name), "%s", argc < 6 ? "memout.txt" : argv[5]);
+  snprintf(memout_name, sizeof(memout_name), "%s", argc < 7 ? "memout.txt" : argv[6]);
   store_mem_to_file(memout_name, main_mem, MAIN_MEM_DEPTH);
 
   return 0;

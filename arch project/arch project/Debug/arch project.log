@@ -1,0 +1,11 @@
+﻿  core.c
+/core.c(1,1): error C1083: Cannot open source file: 'core.c': No such file or directory
+  core_sim.c
+/core_sim.c(1,1): error C1083: Cannot open source file: 'core_sim.c': No such file or directory
+  core_source.c
+/core_source.c(1,1): error C1083: Cannot open source file: 'core_source.c': No such file or directory
+  main.c
+/main.c(1,1): error C1083: Cannot open source file: 'main.c': No such file or directory
+  sim_source.c
+/sim_source.c(1,1): error C1083: Cannot open source file: 'sim_source.c': No such file or directory
+  Generating Code...

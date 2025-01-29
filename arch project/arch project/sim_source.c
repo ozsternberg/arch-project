@@ -127,7 +127,7 @@ void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size
 		fprintf(stderr, "Error opening file %s for writing\n", file_name);
 		exit(1);
 	}
-
+	printf("%s", file_name);
 	for (int i = 0; i < mem_array_size; i++) {
 		fprintf(file, "%08X\n", mem_array[i]); // Write each int as an 8-digit hex number
 	}
@@ -218,11 +218,25 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]) {
     }
 
     for (int i = 0; i < NUM_OF_BLOCKS; i++) {
-		unsigned int combined = (tsram[i].state << 24) | (tsram[i].tag & 0xFFFFFF);
+		unsigned int combined = (tsram[i].state << 12) | (tsram[i].tag & 0xFFFFFF);
 		fprintf(file, "%08X\n", combined); // Write combined state and tag as an 8-digit hex number
     }
 
     fclose(file);
+}
+
+void append_bus_trace_line(char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared) {
+	if (bus_cmd != 0) {
+		printf("append_bus_trace_line: %s", file_name);
+		FILE* file = fopen(file_name, "a");
+		if (file != NULL) {
+			fprintf(file, "%d %d %d %05X %08X %d\n", cycle, bus_origid, bus_cmd, bus_addr, bus_data, bus_shared);
+			fclose(file);
+		}
+		else {
+			printf("Error opening %s", file_name);
+		}
+	}
 }
 
 const char* get_bus_cmd_name(bus_cmd_t cmd) {

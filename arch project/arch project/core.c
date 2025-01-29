@@ -83,7 +83,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	// --------------------- DECODE ---------------------------
 	int dec_set_busy = 0;
-	dec_ex->instrc_d = decode_line(fe_dec->data_q, registers,fe_dec->pc_q);
+	if (clk > 0) dec_ex->instrc_d = decode_line(fe_dec->data_q, registers,fe_dec->pc_q);
 	dec_ex->pc_d = fe_dec->pc_q;
 
 	#ifdef DEBUG_ON

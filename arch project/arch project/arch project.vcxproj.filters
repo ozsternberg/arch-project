@@ -21,6 +21,9 @@
     <ClInclude Include="core_sim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="sim_source.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.c">
@@ -41,5 +44,54 @@
     <ClCompile Include="core_source.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="example\imem0.asm">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="example\imem1.asm">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="example\imem2.asm">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="example\imem3.asm">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="example\imem0.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="example\imem1.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="example\imem2.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="example\imem3.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="example\memin.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="core0trace.txt" />
+    <Text Include="core1trace.txt" />
+    <Text Include="core2trace.txt" />
+    <Text Include="core3trace.txt" />
+    <Text Include="dsram0.txt" />
+    <Text Include="dsram1.txt" />
+    <Text Include="dsram2.txt" />
+    <Text Include="dsram3.txt" />
+    <Text Include="regout0.txt" />
+    <Text Include="regout1.txt" />
+    <Text Include="regout2.txt" />
+    <Text Include="regout3.txt" />
+    <Text Include="tsram0.txt" />
+    <Text Include="tsram1.txt" />
+    <Text Include="tsram2.txt" />
+    <Text Include="tsram3.txt" />
+    <Text Include="memout.txt" />
+    <Text Include="bustrace.txt" />
   </ItemGroup>
 </Project>

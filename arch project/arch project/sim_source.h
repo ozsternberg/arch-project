@@ -140,4 +140,6 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]);
 
 const char *get_bus_cmd_name(bus_cmd_t cmd);
 
+void append_bus_trace_line(char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared);
+
 #endif // SIM_H
