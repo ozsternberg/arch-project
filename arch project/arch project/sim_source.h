@@ -15,7 +15,7 @@
 #define MEM_RD_LATENCY 16 // Time until memory start returning the data
 #define MEM_FILE_SIZE  1024
 
-#define DEBUG_ON
+//#define DEBUG_ON
 
 typedef enum
 {
@@ -104,6 +104,7 @@ typedef struct
 	unsigned int stall;
 	unsigned int data;
 	bus_cmd_s    bus;
+	cache_hit_t	 hit;
 } mem_rsp_s;
 
 

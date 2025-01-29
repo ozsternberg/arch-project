@@ -226,7 +226,7 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]) {
 }
 
 void append_bus_trace_line(char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared) {
-	if (bus_cmd != 0) {
+	if (bus_cmd != 0 & bus_cmd != 4) {
 		printf("append_bus_trace_line: %s", file_name);
 		FILE* file = fopen(file_name, "a");
 		if (file != NULL) {

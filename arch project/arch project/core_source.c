@@ -225,8 +225,8 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
                 bus.bus_addr   = 0;
     			if(core_req_trans == 1)
     			{
-    				bus.bus_addr = addr & 0xFFFFFFFC; // save a copy of the aligned trans address
-                    bus_addr[core_id] = bus.bus_addr;
+                    bus.bus_addr = addr;
+                    bus_addr[core_id] = bus.bus_addr & 0xFFFFFFFC; // save a copy of the aligned trans address
     				// Split bus address to tsram and dsram parameters
     				offset[core_id] = parse_addr(bus.bus_addr).offset;
     				index[core_id] = parse_addr(bus.bus_addr).set;
@@ -512,6 +512,29 @@ void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
     fclose(file);
 }
 
+void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall) {
+    char file_name[20];
+    snprintf(file_name, sizeof(file_name), "stats%d.txt", core_id);
+
+    FILE* file;
+    fopen_s(&file, file_name, "w");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening file %s for writing\n", file_name);
+        exit(1);
+    }
+
+    fprintf(file, "cycles %d\n", clk);
+    fprintf(file, "instructions %d\n", instc);
+    fprintf(file, "read_hit %d\n", rhit);
+    fprintf(file, "write_hit %d\n", whit);
+    fprintf(file, "read_miss %d\n", rmis);
+    fprintf(file, "write_miss %d\n", wmis);
+    fprintf(file, "decode_stall %d\n", dec_stall);
+    fprintf(file, "mem_stall %d\n", mem_stall);
+
+    fclose(file);
+}
+
 void progress_reg(register_line_s *reg)
 {
     reg->instrc_q = reg->instrc_d;
@@ -543,13 +566,13 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
 	fprintf(file, "%s ", (decode.opcode == stall & decode.pc == fetch) || decode.opcode == halt || clk < 1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", exec.pc);
-	fprintf(file, "%s ", (exec.opcode == stall & exec.pc == decode.pc)|| exec.opcode == halt || clk < 2 ? "---" : buffer);
+	fprintf(file, "%s ", (exec.opcode == stall & exec.pc == decode.pc) || exec.opcode == halt || clk < 2 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", mem.pc);
 	fprintf(file, "%s ", (mem.opcode == stall & mem.pc == exec.pc) || mem.opcode == halt || clk < 3 ?  "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", wb.pc);
-	fprintf(file, "%s ", (wb.opcode == stall & wb.pc == mem.pc) || wb.opcode == halt || clk < 4 ? "---" : buffer);
+	fprintf(file, "%s ", (wb.opcode == stall & wb.pc == mem.pc) || wb.opcode == halt ||  clk < 4 ? "---" : buffer);
     for (int i = 2; i < 16; i++) {
         fprintf(file, "%08X ", registers[i]);
     }
@@ -577,6 +600,8 @@ FILE** create_trace_files() {
 
     return files;
 }
+
+
 
 void stall_reg(register_line_s *reg)
 {

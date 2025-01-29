@@ -165,6 +165,10 @@
     <Text Include="regout1.txt" />
     <Text Include="regout2.txt" />
     <Text Include="regout3.txt" />
+    <Text Include="stats0.txt" />
+    <Text Include="stats1.txt" />
+    <Text Include="stats2.txt" />
+    <Text Include="stats3.txt" />
     <Text Include="tsram0.txt" />
     <Text Include="tsram1.txt" />
     <Text Include="tsram2.txt" />

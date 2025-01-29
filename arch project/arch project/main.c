@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
   static bus_origid_t flushing_core_id;
   static bus_cmd_s core_cmd;
 
-  while (clk<10) {
+  while (1) {
     switch (bus_state) {
       case kBusAvailable:
         gnt = 1;
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
         if (core_cmd.bus_cmd != kFlush) puts("Flush was initiated by core but stopped mid way\n");
 
         // Update the main mem
-        main_mem[core_cmd.bus_addr] = core_cmd.bus_data;
+        main_mem[bus_req.bus_addr] = bus_req.bus_data;
 
         if (mem_rd_counter == BLOCK_SIZE - 1) {
           bus_state = kBusAvailable;

@@ -30,6 +30,15 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	int static registers_arr[NUM_CORES][NUM_OF_REGS];
 	int static busy_regs_arr[NUM_CORES][NUM_OF_REGS] = { 0 };
 
+	int static total_inst[NUM_CORES] = { 0 };
+	int static total_rhit[NUM_CORES] = { 0 };
+	int static total_whit[NUM_CORES] = { 0 };
+	int static total_rmis[NUM_CORES] = { 0 };
+	int static total_wmis[NUM_CORES] = { 0 };
+	int static total_dec_stall[NUM_CORES] = { 0 };
+	int static total_mem_stall[NUM_CORES] = { 0 };
+
+
 	register_line_s static fe_dec_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
 	register_line_s static dec_ex_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
 	register_line_s static ex_mem_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
@@ -111,6 +120,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		next_pc = *pc; // decode the same instrc next clk
 
 		stall_reg(fe_dec); // decode the same instrc next clk
+		if (progress_clk == 1) total_dec_stall[core_id]++;
 		//fe_dec->data_d = fe_dec->data_q;
 		//fe_dec->pc_d = fe_dec->pc_q;
 		#ifdef DEBUG_ON
@@ -129,6 +139,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 			next_pc = *pc;     // decode the same instrc next clk
 			stall_reg(fe_dec); // decode the same instrc next clk
+			if (progress_clk == 1) total_dec_stall[core_id]++;
 		}
 		else {
 			// branch resolution in decode stage (and handle sw)
@@ -228,43 +239,21 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	printf("Core: %x, MEMORY START opcode: %s, rd: %x, rs: %x, rt: %x, imm(dec): %d, pc: %x\n", core_id, opcode_to_string(ex_mem->instrc_q.opcode), ex_mem->instrc_q.rd, ex_mem->instrc_q.rs, ex_mem->instrc_q.rt, ex_mem->instrc_q.imm, ex_mem->instrc_q.pc);
 	#endif
 
-	if ((busy_regs[ex_mem->instrc_q.rd] == 1) && (opcode == sw)) {
 
-		//NOTE: This should happen because we take care of this at decode and assume that the regs can only be read at decode stage
-
-		//opcode = stall; // If Rd is not ready than we do not have the addr and so we need to stall the mem access
-
-		//next_pc = *pc; // decode the same instrc next clk
-		// fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
-//
-		// dec_ex->instrc_d = dec_ex->instrc_q; // execute the same instrc next clk
-		// dec_ex->pc_d = dec_ex->pc_q;
-//
-		// ex_mem->instrc_d = ex_mem->instrc_q; // handle memory to the same instrc next clk
-		// ex_mem->pc_d = ex_mem->pc_q;
-
-		//if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
-		//
-		//stall_reg(dec_ex);
-		//stall_reg(fe_dec);
-		//stall_reg(ex_mem);
-
-		#ifdef DEBUG_ON
-		printf("Core: %d MEMORY sw wait for rd\n", core_id);
-		#endif
-	}
 
 	mem_rsp_s mem_rsp;
 	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
 	mem_wb->instrc_d = ex_mem->instrc_q;
-	mem_wb->instrc_d.opcode = opcode; // We need to stall if rd is busy on sw
 	mem_wb->data_d = opcode == lw ? mem_rsp.data : ex_mem->data_q; // If the op is lw we take the data from mem stage, if not we take the data from ex stage
 	mem_wb->pc_d = ex_mem->pc_q;
 
 	// Handle stall
 	if (mem_rsp.stall == 1) {
 		puts("MEM ISSUED STALL");
+		if (mem_wb->instrc_d.opcode == lw && gnt == 1 && progress_clk == 1) total_rmis[core_id]++;
+		if (mem_wb->instrc_d.opcode == sw && gnt == 1 && progress_clk == 1) total_wmis[core_id]++;
 		mem_wb->instrc_d.opcode = stall;
+		if (progress_clk == 1) total_mem_stall[core_id]++;
 		next_pc = *pc; // decode the same instrc next clk
 		// fe_dec->data_d = fe_dec->data_q; // decode the same instrc next clk
 		// fe_dec->pc_d = fe_dec->pc_q;
@@ -274,11 +263,19 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
 
-		stall_reg(dec_ex);
-		stall_reg(fe_dec);
-        stall_reg(ex_mem);
 
-    }
+	}
+	else if (mem_wb->instrc_q.opcode != stall) {
+		if ((mem_wb->instrc_d.opcode == lw) && (progress_clk == 1))
+		{
+			total_rhit[core_id]++;
+		}
+		if ((mem_wb->instrc_d.opcode == sw) && (progress_clk == 1))
+		{
+			total_whit[core_id]++;
+		}
+		else;
+	}
 	#ifdef DEBUG_ON
 	printf("Core: %x, MEMORY END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x, Data(Hex): %x\n", core_id, opcode_to_string(mem_wb->instrc_d.opcode), mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc, mem_wb->data_d);
 	#endif
@@ -308,15 +305,18 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	}
 
 	if ((opcode == halt || error_flag == 1) && halt_core[core_id] == 0) {
-		#ifdef DEBUG_ON
+#ifdef DEBUG_ON
 		printf("Core: %x, HALT\n", core_id);
-		#endif
+#endif
 		halt_core[core_id] = 1;
+		store_stats_to_file(core_id, clk+1, total_inst[core_id], total_rhit[core_id], total_whit[core_id], total_rmis[core_id], total_wmis[core_id], total_dec_stall[core_id], total_mem_stall[core_id]);
 		store_regs_to_file(core_id, registers);
 		fclose(trace_files[core_id]);
-		store_dsram_to_file(core_id, dsram[core_id]);
-		store_tsram_to_file(core_id, tsram[core_id]);
 	}
+
+	if (opcode != stall & (progress_clk == 1)) {
+		total_inst[core_id]++;
+	};
 
 	// ---------------------------------------------------------
 
@@ -326,8 +326,14 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		#endif
 
 		append_trace_line(trace_files[core_id], clk, halt_in_fetch[core_id] ? -1 : *pc, dec_ex->instrc_d, dec_ex->instrc_q,ex_mem->instrc_q, mem_wb->instrc_q, registers);
+		if (mem_rsp.stall == 1) {
 
+			stall_reg(dec_ex);
+			stall_reg(fe_dec);
+			stall_reg(ex_mem);
+		}
 		*pc = halt_in_fetch[core_id] == 0 ? (next_pc & 0x03FF) : *pc; // if halt dont progress pc, take only 10 lot bits from next_pc
+		//*pc = next_pc & 0x03FF; // if halt dont progress pc, take only 10 lot bits from next_pc
 
         progress_reg(fe_dec);
 		progress_reg(dec_ex);
@@ -344,6 +350,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		#endif // DEBUG_ON
 	}
 
+
 	// Check if all entries in halt are one
 	int all_halted = 1;
 	for (int i = 0; i < NUM_CORES; i++) {
@@ -356,6 +363,10 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	if (all_halted) {
 		printf("All cores are halted.\n");
 		mem_rsp.bus.bus_cmd = kHalt;
+		for (int i = 0; i < NUM_CORES; i++) {
+			store_dsram_to_file(i, dsram[i]);
+			store_tsram_to_file(i, tsram[i]);
+		}
 	}
 
 	return mem_rsp.bus;

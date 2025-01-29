@@ -93,5 +93,9 @@
     <Text Include="tsram3.txt" />
     <Text Include="memout.txt" />
     <Text Include="bustrace.txt" />
+    <Text Include="stats0.txt" />
+    <Text Include="stats1.txt" />
+    <Text Include="stats2.txt" />
+    <Text Include="stats3.txt" />
   </ItemGroup>
 </Project>
