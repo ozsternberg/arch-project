@@ -9,9 +9,9 @@
 
 //#define ALLOW_EMPTY_ARGUMENTS
 
-#ifndef DEBUG_ON
-#define DEBUG_ON
-#endif
+//#ifndef DEBUG_ON
+//#define DEBUG_ON
+//#endif
 
 //#define TIMEOUT_ON
 typedef enum
@@ -105,10 +105,11 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
 
 FILE **create_trace_files();
 
+#endif
 //==========================================================================
 // all below are old and should be removed
 //==========================================================================
-
+/*
 const char* get_io_register_name(int reg_number);
 
 // Function for getting the signed value of imm in 32 bit
@@ -159,5 +160,6 @@ void write_reg(int registers[], FILE* regout_pntr);
 //==========================================================================
 void trans_passive(bus_cmd_s);
 
-#endif
 
+
+*/
