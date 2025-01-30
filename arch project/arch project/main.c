@@ -87,19 +87,20 @@ int main(int argc, char *argv[]) {
         progress_clock = 0;
         priority = 0;
         gnt = 0;
-        bus_req.bus_cmd = 0;
         printf("BUS | State: kBusWaitMem, Req Core Id: %d, Waiting Counter: %d, Clk: %d\n\n", bus_req.bus_origid, mem_wait_counter,clk);
 
-        if (bus_req.bus_cmd != kBusRd && bus_req.bus_cmd != kBusRdX)
+        if (bus_req.bus_cmd == kFlush)
         {
-          printf("Error: Bus cmd is not Rd or RdX in bus state: KBusWaitMem, Clk: %d\n", clk);
+            printf("Error: Flush cmd is not expected in bus state: KBusWaitMem, Clk: %d\n", clk);
         }
+
+        bus_req.bus_cmd = 0;
         // Check for flush without progressing the clock and keeping the previous bus req safe
         core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk,argc,argv,mem_files);
 
         // We listen to flush even without a gnt
         if (core_cmd.bus_cmd == kFlush) { // If we see another flush from core while waiting we update the
-            if (core_cmd.bus_addr != bus_req.bus_addr)
+            if (core_cmd.bus_addr != (bus_req.bus_addr & 0xFFFFFFFC))
             {
                 printf("Error: Flush has been issued from core #%d to unread addr(dec): %d\n", core_cmd.bus_origid, core_cmd.bus_addr);
             }

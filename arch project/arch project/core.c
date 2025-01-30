@@ -249,7 +249,9 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	// Handle stall
 	if (mem_rsp.stall == 1) {
+		#ifdef DEBUG_ON
 		puts("MEM ISSUED STALL");
+		#endif
 		if (mem_wb->instrc_d.opcode == lw && gnt == 1 && progress_clk == 1) total_rmis[core_id]++;
 		if (mem_wb->instrc_d.opcode == sw && gnt == 1 && progress_clk == 1) total_wmis[core_id]++;
 		mem_wb->instrc_d.opcode = stall;
