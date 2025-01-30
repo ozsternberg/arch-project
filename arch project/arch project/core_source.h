@@ -93,6 +93,8 @@ instrc decode_line(const int line_dec, int registers[], int pc);
 
 void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]);
 
+void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall);
+
 void progress_reg(register_line_s *reg);
 
 void stall_reg(register_line_s *reg);

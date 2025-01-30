@@ -5,12 +5,12 @@
 #include <string.h>
 #include "sim_source.h"
 
-bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int clk, int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE]) {
+bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int clk, int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]) {
 
-	int static dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
+	static int  dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
 	static tsram_entry  tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
-	cache_state_t static cache_state[NUM_CORES];
-	core_state_t  static core_state[NUM_CORES];
+	static cache_state_t cache_state[NUM_CORES];
+	static core_state_t  core_state[NUM_CORES];
 
 
 	static FILE* trace_files[NUM_CORES] = { 0 };
@@ -21,28 +21,28 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		}
 	}
 
-	int static error_flag = 0;
-	int static halt_core[NUM_CORES] = { 0 };
-	int static halt_in_fetch[NUM_CORES] = { 0 };
-	int static busy_reg_before = 0;
+	static int error_flag = 0;
+	static int halt_core[NUM_CORES] = { 0 };
+	static int halt_in_fetch[NUM_CORES] = { 0 };
+	static int busy_reg_before = 0;
 	// Initialize the required _arrays and variables
-	int static pc_arr[NUM_CORES] = { 0 };
-	int static registers_arr[NUM_CORES][NUM_OF_REGS];
-	int static busy_regs_arr[NUM_CORES][NUM_OF_REGS] = { 0 };
+	static int pc_arr[NUM_CORES] = { 0 };
+	static int registers_arr[NUM_CORES][NUM_OF_REGS];
+	static int busy_regs_arr[NUM_CORES][NUM_OF_REGS] = { 0 };
 
-	int static total_inst[NUM_CORES] = { 0 };
-	int static total_rhit[NUM_CORES] = { 0 };
-	int static total_whit[NUM_CORES] = { 0 };
-	int static total_rmis[NUM_CORES] = { 0 };
-	int static total_wmis[NUM_CORES] = { 0 };
-	int static total_dec_stall[NUM_CORES] = { 0 };
-	int static total_mem_stall[NUM_CORES] = { 0 };
+	static int total_inst[NUM_CORES] = { 0 };
+	static int total_rhit[NUM_CORES] = { 0 };
+	static int total_whit[NUM_CORES] = { 0 };
+	static int total_rmis[NUM_CORES] = { 0 };
+	static int total_wmis[NUM_CORES] = { 0 };
+	static int total_dec_stall[NUM_CORES] = { 0 };
+	static int total_mem_stall[NUM_CORES] = { 0 };
 
 
-	register_line_s static fe_dec_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
-	register_line_s static dec_ex_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
-	register_line_s static ex_mem_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
-	register_line_s static mem_wb_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	static register_line_s fe_dec_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	static register_line_s dec_ex_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	static register_line_s ex_mem_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
+	static register_line_s mem_wb_arr[NUM_CORES] = {{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0},{{-1},{-1},0,0}};
 
 	int *pc = &pc_arr[core_id];
 
@@ -304,7 +304,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		busy_regs[15] = 0;
 	}
 
-	if ((opcode == halt || error_flag == 1) && halt_core[core_id] == 0) {
+	if (((opcode == halt) || (error_flag == 1)) && halt_core[core_id] == 0) {
 #ifdef DEBUG_ON
 		printf("Core: %x, HALT\n", core_id);
 #endif
@@ -314,7 +314,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		fclose(trace_files[core_id]);
 	}
 
-	if (opcode != stall & (progress_clk == 1)) {
+	if ((opcode != stall) && (progress_clk == 1)) {
 		total_inst[core_id]++;
 	};
 

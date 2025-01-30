@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
         }
         // Check for flush without progressing the clock and keeping the previous bus req safe
         core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk,argc,argv,mem_files);
-        
+
         // We listen to flush even without a gnt
         if (core_cmd.bus_cmd == kFlush) { // If we see another flush from core while waiting we update the
             if (core_cmd.bus_addr != bus_req.bus_addr)
@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
         break;
     }
     printf("BUS | Cmd: %s, OrigID: %d, Addr(Dec): %d, Data(Hex): %X, Share: %d, Clk: %d\n\n", get_bus_cmd_name(bus_req.bus_cmd), bus_req.bus_origid,bus_req.bus_addr, bus_req.bus_data, bus_req.bus_share,clk);
-    append_bus_trace_line(output_files[9], clk, bus_req.bus_origid, bus_req.bus_cmd, bus_req.bus_addr, bus_req.bus_data, bus_req.bus_share, clk);
+    append_bus_trace_line(output_files[9], clk, bus_req.bus_origid, bus_req.bus_cmd, bus_req.bus_addr, bus_req.bus_data, bus_req.bus_share);
 
     clk++;
     if (bus_req.bus_cmd == kHalt) break; // If halt is issued we break the loop and exit

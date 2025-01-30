@@ -16,7 +16,7 @@
 #define MEM_FILE_SIZE  1024
 
 //#define DEBUG_ON
-
+#define   LINUX_MODE
 typedef enum
 {
 	kNoCmd,
@@ -72,7 +72,7 @@ typedef struct
 {
 	bus_origid_t     bus_origid;
 	bus_cmd_t	     bus_cmd;
-	int			     bus_addr;
+	unsigned int	 bus_addr;
 	int			     bus_data;
 	int			     bus_share;
 	int 		     req_enable;
@@ -81,7 +81,7 @@ typedef struct
 
 typedef struct
 {
-	int				tag; // Size of 12 bits
+	unsigned int	tag; // Size of 12 bits
 	mesi_state_t	state;
 }   tsram_entry;
 
@@ -95,14 +95,14 @@ typedef struct
 typedef struct
 {
 	cache_hit_t  hit_type;
-	unsigned int data;
+	int data;
 } cache_query_rsp_s ;
 
 
 typedef struct
 {
-	unsigned int stall;
-	unsigned int data;
+	int          stall;
+	int          data;
 	bus_cmd_s    bus;
 	cache_hit_t	 hit;
 } mem_rsp_s;
@@ -121,9 +121,9 @@ cache_addr_s parse_addr(int addr);
 
 int round_robin_arbitrator();
 
-bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE]);
+bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clk,int clk,int argc, char *argv[],int mem[NUM_CORES][MEM_FILE_SIZE]);
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clk,int clk,int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
 
 void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]);
 
@@ -141,6 +141,6 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]);
 
 const char *get_bus_cmd_name(bus_cmd_t cmd);
 
-void append_bus_trace_line(char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared);
+void append_bus_trace_line(const char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared);
 
 #endif // SIM_H

@@ -2,14 +2,14 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -Wno-error -g
 
 # Target executable
-TARGET = main
+TARGET = sim
 
 # Source and header files
-SRCS = main.c sim_source.c
-HEADERS = sim.h
+SRCS = main.c sim_source.c core.c core_source.c
+HEADERS = sim_source.h core_source.h
 
 # Object files
 OBJS = $(SRCS:.c=.o)

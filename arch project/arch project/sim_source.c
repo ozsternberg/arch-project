@@ -26,7 +26,7 @@ int round_robin_arbitrator()
 	return curr_r;
 }
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_id, int progress_clock, int clk,int argc, char *argv[], int mem[NUM_CORES][MEM_FILE_SIZE])
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_id, int progress_clock, int clk,int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE])
 {
 	int core_issued_flush = 0;
 	bus_cmd_s core_cmd;
@@ -60,7 +60,7 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 			core_issued_flush = 1;
 			core_cmd_rtr = core_cmd;
 		}
-		else if (core_cmd.bus_cmd == kFlush && (core_cmd.bus_origid == core_id) && (gnt == 1 || priority_for_gnt == 1))
+		else if (core_cmd.bus_cmd == kFlush && ((int)core_cmd.bus_origid == core_id) && (gnt == 1 || priority_for_gnt == 1))
 		{
 			printf("Error - core #%d issued flush while core #%d issued a req on its turn!\n", core_id, gnt_core_id); // For debugging purposes
 		}
@@ -73,8 +73,14 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 	char buffer[100];
 	for (int i = 0; i < NUM_CORES; i++) {
 		if (file_names[i+1] == NULL) continue; // Skip if no file name is provided for this core
-		if (fopen_s(&file, file_names[i+1], "r") != 0) {
-			fprintf_s(stderr, "Error opening file %s\n", file_names[i+1]);
+		#ifdef LINUX_MODE
+				file = fopen(file_names[i+1], "r");
+				if (file == NULL) {
+					fprintf(stderr, "Error opening file %s\n", file_names[i+1]);
+		#else
+				if (fopen_s(&file, file_names[i+1], "r") != 0) {
+					fprintf_s(stderr, "Error opening file %s\n", file_names[i+1]);
+		#endif
 			exit(1);
 		}
 #ifdef DEBUG_ON
@@ -85,7 +91,11 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 				if (feof(file)) {
 					break; // End of file reached, break the loop
 				} else {
-					fprintf_s(stderr, "Error reading data from file %s\n", file_names[i+1]);
+					#ifdef LINUX_MODE
+										fprintf(stderr, "Error reading data from file %s\n", file_names[i+1]);
+					#else
+										fprintf_s(stderr, "Error reading data from file %s\n", file_names[i+1]);
+					#endif
 					fclose(file);
 					exit(1);
 				}
@@ -98,10 +108,16 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 
 void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 	FILE *file;
-	if (fopen_s(&file, file_name, "r") != 0) {
-		fprintf_s(stderr, "Error opening file %s\n", file_name);
-		exit(1);
-	}
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "r");
+		if (file == NULL) {
+			fprintf(stderr, "Error opening file %s\n", file_name);
+	#else
+		if (fopen_s(&file, file_name, "r") != 0) {
+			fprintf_s(stderr, "Error opening file %s\n", file_name);
+	#endif
+			exit(1);
+		}
 	if (file == NULL) {
 		fprintf(stderr, "Error opening file %s\n", file_name);
 		exit(1);
@@ -119,10 +135,16 @@ void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 
 void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size) {
 	FILE *file;
-	if (fopen_s(&file, file_name, "w") != 0) {
-		fprintf_s(stderr, "Error opening file %s for writing\n", file_name);
-		exit(1);
-	}
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+		if (file == NULL) {
+			fprintf(stderr, "Error opening file %s for writing\n", file_name);
+	#else
+		if (fopen_s(&file, file_name, "w") != 0) {
+			fprintf_s(stderr, "Error opening file %s for writing\n", file_name);
+	#endif
+			exit(1);
+		}
 	if (file == NULL) {
 		fprintf(stderr, "Error opening file %s for writing\n", file_name);
 		exit(1);
@@ -185,10 +207,16 @@ void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE]) {
 	snprintf(file_name, sizeof(file_name), "dsram%d.txt", core_id);
 
 	FILE *file;
-	if (fopen_s(&file, file_name, "w") != 0) {
-		fprintf(stderr, "Error opening file %s for writing\n", file_name);
-		exit(1);
-	}
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+		if (file == NULL) {
+			fprintf(stderr, "Error opening file %s for writing\n", file_name);
+	#else
+		if (fopen_s(&file, file_name, "w") != 0) {
+			fprintf_s(stderr, "Error opening file %s for writing\n", file_name);
+	#endif
+			exit(1);
+		}
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -208,10 +236,16 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]) {
 	snprintf(file_name, sizeof(file_name),"tsram%d.txt", core_id);
 
 	FILE *file;
-	if (fopen_s(&file, file_name, "w") != 0) {
-		fprintf(stderr, "Error opening file %s for writing\n", file_name);
-		exit(1);
-	}
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+		if (file == NULL) {
+			fprintf(stderr, "Error opening file %s for writing\n", file_name);
+	#else
+		if (fopen_s(&file, file_name, "w") != 0) {
+			fprintf_s(stderr, "Error opening file %s for writing\n", file_name);
+	#endif
+			exit(1);
+		}
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -225,8 +259,8 @@ void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]) {
     fclose(file);
 }
 
-void append_bus_trace_line(char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared) {
-	if (bus_cmd != 0 & bus_cmd != 4) {
+void append_bus_trace_line(const char* file_name, int cycle, int bus_origid, int bus_cmd, int bus_addr, int bus_data, int bus_shared) {
+	if ((bus_cmd != 0) && (bus_cmd != 4)) {
 		printf("append_bus_trace_line: %s", file_name);
 		FILE* file = fopen(file_name, "a");
 		if (file != NULL) {

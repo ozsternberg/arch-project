@@ -127,7 +127,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 				{
                     perror("Halt arrived mid transaction!\n\n");
 				}
-                if (bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC != addr & 0xFFFFFFFC)
+                if ((bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC) != (addr & 0xFFFFFFFC))
                 {
                     printf("Data is received from wrong address\n");
                 }
@@ -154,10 +154,10 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     static int core_send_counter[NUM_CORES]    = {0};
     static int core_receive_counter[NUM_CORES] = {0};
 
-    static int offset[NUM_CORES];
-    static int index[NUM_CORES];
-    static int tag[NUM_CORES];
-    static int bus_addr[NUM_CORES];
+    static unsigned int offset[NUM_CORES];
+    static unsigned int index[NUM_CORES];
+    static unsigned int tag[NUM_CORES];
+    static unsigned int bus_addr[NUM_CORES];
     static tsram_entry* entry[NUM_CORES] = { 0 };
     static core_state_t next_state[NUM_CORES] = { Idle };
     static mesi_state_t entry_state[NUM_CORES];
@@ -499,7 +499,13 @@ void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
     snprintf(file_name, sizeof(file_name), "regout%d.txt", core_id);
 
     FILE *file;
-    fopen_s(&file, file_name, "w");
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+	#else
+		if (fopen_s(&file, file_name, "w") != 0) {
+			file = NULL;
+		}
+	#endif
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -517,7 +523,11 @@ void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, in
     snprintf(file_name, sizeof(file_name), "stats%d.txt", core_id);
 
     FILE* file;
-    fopen_s(&file, file_name, "w");
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+	#else
+		fopen_s(&file, file_name, "w");
+	#endif
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -563,16 +573,16 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
 	fprintf(file, "%s ", fetch == -1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", decode.pc);
-	fprintf(file, "%s ", (decode.opcode == stall & decode.pc == fetch) || decode.opcode == halt || clk < 1 ? "---" : buffer);
+	fprintf(file, "%s ", ((decode.opcode == stall) && (decode.pc == fetch)) || decode.opcode == halt || clk < 1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", exec.pc);
-	fprintf(file, "%s ", (exec.opcode == stall & exec.pc == decode.pc) || exec.opcode == halt || clk < 2 ? "---" : buffer);
+	fprintf(file, "%s ", ((exec.opcode == stall) && (exec.pc == decode.pc)) || exec.opcode == halt || clk < 2 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", mem.pc);
-	fprintf(file, "%s ", (mem.opcode == stall & mem.pc == exec.pc) || mem.opcode == halt || clk < 3 ?  "---" : buffer);
+	fprintf(file, "%s ", ((mem.opcode == stall) && (mem.pc == exec.pc)) || mem.opcode == halt || clk < 3 ?  "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", wb.pc);
-	fprintf(file, "%s ", (wb.opcode == stall & wb.pc == mem.pc) || wb.opcode == halt ||  clk < 4 ? "---" : buffer);
+	fprintf(file, "%s ", ((wb.opcode == stall) && (wb.pc == mem.pc)) || wb.opcode == halt ||  clk < 4 ? "---" : buffer);
     for (int i = 2; i < 16; i++) {
         fprintf(file, "%08X ", registers[i]);
     }
@@ -591,11 +601,19 @@ FILE** create_trace_files() {
         char file_name[20];
         snprintf(file_name, sizeof(file_name), "core%dtrace.txt", i);
 
-        fopen_s(&files[i], file_name, "w");
-        if (files[i] == NULL) {
-            fprintf(stderr, "Error opening file %s for writing\n", file_name);
-            exit(1);
-        }
+		#ifdef LINUX_MODE
+			files[i] = fopen(file_name, "w");
+			if (files[i] == NULL) {
+				fprintf(stderr, "Error opening file %s for writing\n", file_name);
+				exit(1);
+			}
+		#else
+			fopen_s(&files[i], file_name, "w");
+			if (files[i] == NULL) {
+				fprintf(stderr, "Error opening file %s for writing\n", file_name);
+				exit(1);
+			}
+		#endif
     }
 
     return files;
