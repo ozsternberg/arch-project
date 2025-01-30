@@ -16,7 +16,9 @@
 #define MEM_FILE_SIZE  1024
 
 //#define DEBUG_ON
-#define   LINUX_MODE
+// #ifndef LINUX_MODE
+// #define LINUX_MODE
+// #endif
 typedef enum
 {
 	kNoCmd,

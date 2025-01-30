@@ -2,7 +2,7 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -Wno-error -g
+CFLAGS = -Wall -Wextra -Wno-error -g -DLINUX_MODE
 
 # Target executable
 TARGET = sim
