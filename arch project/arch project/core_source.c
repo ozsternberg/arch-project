@@ -494,10 +494,10 @@ instrc decode_line(const int line_dec, int registers[], int pc) {
 	return  new_instrc;
 }
 
-void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
-    char file_name[20];
-    snprintf(file_name, sizeof(file_name), "regout%d.txt", core_id);
-
+void store_regs_to_file(int core_id, int regs[NUM_OF_REGS],const char *output_files[]) {
+    char file_name[100];
+	snprintf(file_name, sizeof(file_name), "%s", output_files[1 + core_id]);
+    printf("Storing core#%d regs  to %s\n", core_id, file_name);
     FILE *file;
 	#ifdef LINUX_MODE
 		file = fopen(file_name, "w");
@@ -518,10 +518,10 @@ void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
     fclose(file);
 }
 
-void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall) {
-    char file_name[20];
-    snprintf(file_name, sizeof(file_name), "stats%d.txt", core_id);
-
+void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall, const char *output_files[]) {
+    char file_name[100];
+	snprintf(file_name, sizeof(file_name), "%s", output_files[18 + core_id]);
+    printf("Storing core#%d stats to %s\n", core_id, file_name);
     FILE* file;
 	#ifdef LINUX_MODE
 		file = fopen(file_name, "w");
@@ -590,7 +590,7 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
     fprintf(file, "\n");
 }
 
-FILE** create_trace_files() {
+FILE** create_trace_files(const char *output_files[]) {
     FILE** files = malloc(NUM_CORES * sizeof(FILE*));
     if (files == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
@@ -598,9 +598,10 @@ FILE** create_trace_files() {
     }
 
     for (int i = 0; i < NUM_CORES; i++) {
-        char file_name[20];
-        snprintf(file_name, sizeof(file_name), "core%dtrace.txt", i);
+        char file_name[100];
+		snprintf(file_name, sizeof(file_name), "%s", output_files[5 + i]);
 
+        
 		#ifdef LINUX_MODE
 			files[i] = fopen(file_name, "w");
 			if (files[i] == NULL) {

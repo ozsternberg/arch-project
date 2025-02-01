@@ -91,9 +91,9 @@ int get_signed_imm(const int imm);
 int execute_op(const instrc instrc, int registers[]);
 instrc decode_line(const int line_dec, int registers[], int pc);
 
-void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]);
+void store_regs_to_file(int core_id, int regs[NUM_OF_REGS],const char *output_files[]);
 
-void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall);
+void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall,const char *output_files[]);
 
 void progress_reg(register_line_s *reg);
 
@@ -105,7 +105,7 @@ int get_reg_val(int reg, int registers[], int imm);
 
 void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exec, instrc mem, instrc wb, int registers[NUM_OF_REGS]);
 
-FILE **create_trace_files();
+FILE **create_trace_files(const char *output_files[]);
 
 #endif
 //==========================================================================

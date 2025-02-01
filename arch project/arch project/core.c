@@ -5,7 +5,7 @@
 #include <string.h>
 #include "sim_source.h"
 
-bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int clk, int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]) {
+bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int clk, const char *output_files[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]) {
 
 	static int  dsram[NUM_CORES][NUM_OF_BLOCKS][BLOCK_SIZE] = { 0 };
 	static tsram_entry  tsram[NUM_CORES][NUM_OF_BLOCKS] = { 0 };
@@ -15,7 +15,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	static FILE* trace_files[NUM_CORES] = { 0 };
 	if (trace_files[0] == NULL) {
-		FILE** temp_files = create_trace_files();
+		FILE** temp_files = create_trace_files(output_files);
 		for (int i = 0; i < NUM_CORES; i++) {
 			trace_files[i] = temp_files[i];
 		}
@@ -133,7 +133,9 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 		if (busy_regs[dec_ex->instrc_d.rd])  // For branch resolution we need rd
 		{
+#ifdef DEBUG_ON
 			printf("Op %s wait for rd: %d\n",opcode_to_string(dec_ex->instrc_d.opcode), dec_ex->instrc_d.rd);
+#endif
 			dec_ex->instrc_d.opcode = stall; // inject stall to execute
 			dec_ex->pc_d = dec_ex->pc_q;
 
@@ -311,9 +313,12 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		printf("Core: %x, HALT\n", core_id);
 #endif
 		halt_core[core_id] = 1;
-		store_stats_to_file(core_id, clk+1, total_inst[core_id], total_rhit[core_id], total_whit[core_id], total_rmis[core_id], total_wmis[core_id], total_dec_stall[core_id], total_mem_stall[core_id]);
-		store_regs_to_file(core_id, registers);
+		store_stats_to_file(core_id, clk+1, total_inst[core_id], total_rhit[core_id], total_whit[core_id], total_rmis[core_id], total_wmis[core_id], total_dec_stall[core_id], total_mem_stall[core_id], output_files);
+		store_regs_to_file(core_id, registers, output_files);
+		
+		printf("Storing core#%d trace to %s\n", core_id,output_files[core_id + 5]);
 		fclose(trace_files[core_id]);
+		puts("\n");
 	}
 
 	if ((opcode != stall) && (progress_clk == 1)) {
@@ -366,9 +371,11 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		printf("All cores are halted.\n");
 		mem_rsp.bus.bus_cmd = kHalt;
 		for (int i = 0; i < NUM_CORES; i++) {
-			store_dsram_to_file(i, dsram[i]);
-			store_tsram_to_file(i, tsram[i]);
+			puts("\n");
+			store_dsram_to_file(i, dsram[i], output_files);
+			store_tsram_to_file(i, tsram[i], output_files);
 		}
+		puts("\n");
 	}
 
 	return mem_rsp.bus;

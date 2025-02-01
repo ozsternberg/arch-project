@@ -123,9 +123,9 @@ cache_addr_s parse_addr(int addr);
 
 int round_robin_arbitrator();
 
-bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
+bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, const char *output_files[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
 
-bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clk,int clk,int argc, char *argv[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
+bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clk,int clk, const char *output_files[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
 
 void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]);
 
@@ -137,9 +137,9 @@ void check_input_files(int argc, char *argv[], const char *input_files[], int in
 
 const char **create_output_files(int argc, char *argv[], const char *output_files[], int output_files_count);
 
-void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE]);
+void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE], const char *output_files[]);
 
-void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS]);
+void store_tsram_to_file(int core_id, tsram_entry tsram[NUM_OF_BLOCKS],const char *output_files[]);
 
 const char *get_bus_cmd_name(bus_cmd_t cmd);
 
