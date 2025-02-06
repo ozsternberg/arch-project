@@ -101,7 +101,9 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	#endif
 
 	// --------------------- DECODE ---------------------------
-	if (clk > 0) dec_ex->instrc_d = decode_line(fe_dec->data_q, registers,fe_dec->pc_q);
+	if (clk > 0) fe_dec->instrc_q = decode_line(fe_dec->data_q, registers,fe_dec->pc_q);
+	dec_ex->instrc_d = fe_dec->instrc_q;
+
 	dec_ex->pc_d = fe_dec->pc_q;
 	
 	if (halt_in_fetch[core_id])
@@ -345,8 +347,12 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 			stall_reg(ex_mem);
 		}
 		*pc = halt_in_fetch[core_id] == 0 ? (next_pc & 0x03FF) : *pc; // if halt don't progress pc, take only 10 lot bits from next_pc
-		//*pc = next_pc & 0x03FF; // if halt dont progress pc, take only 10 lot bits from next_pc
-
+		
+		if (halt_in_fetch[core_id] == 1)
+		{
+			fe_dec->instrc_d.pc = -1;
+			fe_dec->pc_d = -1;
+		}
         progress_reg(fe_dec);
 		progress_reg(dec_ex);
 		progress_reg(ex_mem);
