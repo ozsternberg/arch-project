@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Wno-error -g -DLINUX_MODE
 
 # Target executable
-TARGET = sim
+TARGET = sim_linux
 
 # Source and header files
 SRCS = main.c sim_source.c core.c core_source.c

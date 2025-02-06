@@ -32,8 +32,10 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 	bus_cmd_s core_cmd;
 	bus_cmd_s core_cmd_rtr;
 
-	if (priority_for_gnt == 1) bus_req = core(gnt_core_id, gnt, bus_req, progress_clock, clk,output_files,mem); // If gnt we give priority to the selected core
-	core_cmd_rtr = bus_req;
+	if (priority_for_gnt == 1) core_cmd_rtr = core(gnt_core_id, gnt, bus_req, progress_clock, clk, output_files, mem); // If gnt we give priority to the selected core
+	else core_cmd_rtr = bus_req;
+
+	core_cmd = core_cmd_rtr;
 
 	if (core_cmd_rtr.bus_cmd == kHalt) return core_cmd_rtr; // If halt is issued we return the bus_req
 
@@ -41,19 +43,21 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 	{
 		if (core_id == gnt_core_id && priority_for_gnt == 1) continue;
 
-		core_cmd = core(core_id, 0, bus_req, progress_clock, clk, output_files, mem);
+		core_cmd = core(core_id, 0, core_cmd_rtr, progress_clock, clk, output_files, mem);
 		if (core_cmd.bus_cmd == kHalt) return core_cmd; // If halt is issued we return the bus_req
 
-		// if (core_cmd == ) perror("Error - core returned NULL\n");
-
+        if ((memcmp(&core_cmd_rtr, &core_cmd, sizeof(bus_cmd_s)-4) != 0) && priority_for_gnt == 1)
+		{
+			printf("Core changed the bus while another core had priority!\n"); // Sanity check to see that we get the expected bus cmd
+		}
 		if (core_cmd.bus_cmd == kFlush && priority_for_gnt == 0 && core_cmd.bus_origid != main_mem_id)  // We rely on cores that have modifed data to flush on read - that is the only thing we care about
 		{
-			if (core_issued_flush == 1)
+			if (core_issued_flush == 1 && core_cmd.bus_origid != core_cmd_rtr.bus_origid)
 			{
 				puts("Error - two cores flushed on the same time!\n");
 			}
 
-			if (bus_req.bus_origid == main_mem_id)
+			if (core_cmd_rtr.bus_origid == main_mem_id)
 			{
 				printf("Core #%d tried to flush while the main mem was flushing!\n", core_id);
 			}
@@ -64,6 +68,8 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 		{
 			printf("Error - core #%d issued flush while core #%d issued a req on its turn!\n", core_id, gnt_core_id); // For debugging purposes
 		}
+
+		core_cmd_rtr = core_cmd;
 	}
 	return core_cmd_rtr;
 }
@@ -76,18 +82,18 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 		#ifdef LINUX_MODE
 				file = fopen(file_names[i], "r");
 				if (file == NULL) {
-					fprintf(stderr, "Error opening file %s\n", file_names[i]);
+					fprintf(stderr, "Error opening file: %s\n", file_names[i]);
 					exit (1);
 				}
 		#else
 				if (fopen_s(&file, file_names[i], "r") != 0) {
-					fprintf_s(stderr, "Error opening file %s\n", file_names[i]);
+					fprintf_s(stderr, "Error opening file: %s\n", file_names[i]);
 					exit(1);
 				}
 		#endif
 
 
-		printf("\nLoading imem #%d from file: %s\n", i ,file_names[i]);
+		printf("\nLoading imem #%d  from file: %s\n", i ,file_names[i]);
 
 		for (int j = 0; j < MEM_FILE_SIZE; j++) {
 			if (fgets(buffer, sizeof(buffer), file) == NULL) {
@@ -95,9 +101,9 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 					break; // End of file reached, break the loop
 				} else {
 					#ifdef LINUX_MODE
-										fprintf(stderr, "Error reading data from file %s\n", file_names[i]);
+										fprintf(stderr, "Error reading data from file: %s\n", file_names[i]);
 					#else
-										fprintf_s(stderr, "Error reading data from file %s\n", file_names[i]);
+										fprintf_s(stderr, "Error reading data from file: %s\n", file_names[i]);
 					#endif
 					fclose(file);
 					exit(1);
@@ -111,14 +117,14 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 
 void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 	FILE *file;
-	printf("\nLoading main mem from file %s\n", file_name);
+	printf("\nLoading main mem from file: %s\n", file_name);
 	#ifdef LINUX_MODE
 		file = fopen(file_name, "r");
 		if (file == NULL) {
-			fprintf(stderr, "Error opening file %s\n", file_name);
+			fprintf(stderr, "Error opening file: %s\n", file_name);
 	#else
 		if (fopen_s(&file, file_name, "r") != 0) {
-			fprintf_s(stderr, "Error opening file %s\n", file_name);
+			fprintf_s(stderr, "Error opening file: %s\n", file_name);
 	#endif
 			exit(1);
 		}
@@ -153,7 +159,7 @@ void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size
 		fprintf(stderr, "Error opening file %s for writing\n", file_name);
 		exit(1);
 	}
-	
+
 	for (int i = 0; i < mem_array_size; i++) {
 		fprintf(file, "%08X\n", mem_array[i]); // Write each int as an 8-digit hex number
 	}
@@ -181,30 +187,6 @@ void check_input_files(int argc, char *argv[], const char *input_files[], int in
 	}
 }
 
-const char **create_output_files(int argc, char *argv[], const char *output_files[], int output_files_count) {
-	const char **file_names = malloc(output_files_count * sizeof(char *));
-	if (file_names == NULL) {
-		fprintf(stderr, "Error: Memory allocation failed\n");
-		exit(EXIT_FAILURE);
-	}
-
-	for (int i = 0; i < output_files_count; i++) {
-		if (i + 1 < argc) {
-			file_names[i] = argv[i + 1];
-		} else {
-			file_names[i] = output_files[i];
-		}
-	}
-
-	// Ensure to free the allocated memory after use
-	// atexit(free_file_names);
-
-	return file_names;
-}
-
-// void free_file_names(const char **file_names) {
-// 	free(file_names);
-// }
 
 void store_dsram_to_file(int core_id, int array[NUM_OF_BLOCKS][BLOCK_SIZE], const char *output_files[]) {
 	char file_name[100];

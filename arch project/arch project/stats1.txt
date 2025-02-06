@@ -1,5 +1,5 @@
 cycles 705
-instructions 500
+instructions 501
 read_hit 0
 write_hit 0
 read_miss 0

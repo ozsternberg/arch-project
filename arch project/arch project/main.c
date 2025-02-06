@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
      printf("Only %d input files provided instead of 5, using default naming for input/output files\n", argc - 1);
   }
 
-  // If one output file name is missing we will use the defualt naming 
+  // If one output file name is missing we will use the default naming
   else if (argc < 28)
   {
      printf("Only %d arguments provided instead of 27, using default naming for output files\n", argc - 1);
@@ -59,21 +59,40 @@ int main(int argc, char *argv[]) {
   static int priority = 0;
   static bus_origid_t flushing_core_id;
   static bus_cmd_s core_cmd;
-
+  static int gnt_core_id = 0;
   puts("\n");
 
   while (1) {
     switch (bus_state) {
       case kBusAvailable:
         gnt = 1;
-        progress_clock = 1;
+        progress_clock = 0;
         priority = 1;
-        int gnt_core_id = round_robin_arbitrator();
+        bus_req.bus_cmd = kNoCmd;
+
+        //int gnt_core_id = round_robin_arbitrator();
 #ifdef DEBUG_ON
         printf("BUS | State: kBusAvailable, Gnt Core Id: %d, Clk: %d\n\n", gnt_core_id,clk);
 #endif
-        // Check all the cores
-        bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock,clk, output_files,mem_files);
+        //bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock,clk, output_files,mem_files);
+
+        // Check all the cores for requests
+        int i = 0;
+        while (bus_req.bus_cmd == kNoCmd && i < 4)
+        {
+            gnt_core_id = round_robin_arbitrator();
+            bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
+            i++;
+        }
+
+        // Set priority for the req core and progress clk for cores
+        progress_clock = 1;
+        bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
+
+        if (bus_req.bus_origid != gnt_core_id)
+        {
+            printf("Bus req came from core without gnt!\n");
+        }
 
         if (bus_req.bus_cmd == kNoCmd) break; // If the current core does not have a req we move to the next one
 
@@ -122,10 +141,10 @@ int main(int argc, char *argv[]) {
           printf("BUS | State: kBusWaitMem, Req Core: %d, Sending Core: %d, Address(dec): %d, Clk: %d\n\n", bus_req.bus_origid, core_cmd.bus_origid, bus_req.bus_addr, clk);
 #endif // DEBUG_ON
 
-          // Progress the cores and set flushing core as the one with the gnt, also update the bus req
+          // Progress the cores and set flushing core as the one with the priority, also update the bus req
           bus_req = cores(bus_req, priority, gnt, core_cmd.bus_origid, progress_clock, clk, output_files, mem_files);
 
-          if (memcmp(&bus_req, &core_cmd, sizeof(bus_cmd_s)) != 0) printf("bus req and core cmd are not the same!\n"); // Sanity check to see that we get the expected bus cmd
+          if (memcmp(&bus_req, &core_cmd, sizeof(bus_cmd_s)-4) != 0) printf("bus req and core cmd are not the same!\n"); // Sanity check to see that we get the expected bus cmd
 
           bus_state = kWaitCoreFlush; // We wait for all the new data to come from the flushing core
           main_mem[bus_req.bus_addr] = core_cmd.bus_data; // The write to the memory takes place on the same time as the flush arrives
@@ -151,7 +170,7 @@ int main(int argc, char *argv[]) {
         bus_req.bus_addr = (bus_req.bus_addr & 0xFFFFFFFC) + mem_rd_counter; // Align the address to the block size and increment
         bus_req.bus_data = main_mem[bus_req.bus_addr];
         bus_req.bus_cmd = kFlush; // When returning data the command is flush
-        //bus_req.bus_share = shared; // Should be set without the bus changing it
+        //bus_req.bus_share = shared;
 #ifdef DEBUG_ON
         printf("BUS | State: kBusFlush, Req Core Id: %d, Send Counter: %d, Clk: %d\n\n", req_core, mem_rd_counter, clk);
 #endif

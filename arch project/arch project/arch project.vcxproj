@@ -136,7 +136,6 @@
     <ClCompile Include="core_sim.c" />
     <ClCompile Include="core_source.c" />
     <ClCompile Include="main.c" />
-    <ClCompile Include="sim.cpp" />
     <ClCompile Include="sim_source.c" />
   </ItemGroup>
   <ItemGroup>

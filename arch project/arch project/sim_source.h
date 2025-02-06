@@ -12,9 +12,10 @@
 #define TAG_WIDTH      12 // Bits
 #define OFFSET_WIDTH   2  // Bits
 #define NUM_CORES      4
-#define MEM_RD_LATENCY 16 // Time until memory start returning the data
+#define MEM_RD_LATENCY 15 // Time until memory start returning the data
 #define MEM_FILE_SIZE  1024
 
+#define OPTIMIZATION_ON
 //#define DEBUG_ON
 // #ifndef LINUX_MODE
 // #define LINUX_MODE
@@ -77,7 +78,6 @@ typedef struct
 	unsigned int	 bus_addr;
 	int			     bus_data;
 	int			     bus_share;
-	int 		     req_enable;
 } bus_cmd_s;
 
 

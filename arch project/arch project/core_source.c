@@ -67,7 +67,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     {
         printf("Non mem opcode arrived in the middle of transaction\n");
     }
-    //if (op == halt) return (mem_rsp_s) {0, 0, bus};
+
     if (op == stall && core_req_trans)
     {
         perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
@@ -135,10 +135,6 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
             }
 
             break;
-
-        case kStop:
-            mem_rsp.stall = 0;
-			break;
     }
 
     if (progress_clk == 1) *cache_state = next_cache_state;
@@ -158,6 +154,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     static unsigned int index[NUM_CORES];
     static unsigned int tag[NUM_CORES];
     static unsigned int bus_addr[NUM_CORES];
+    static unsigned int bus_shared[NUM_CORES];
     static tsram_entry* entry[NUM_CORES] = { 0 };
     static core_state_t next_state[NUM_CORES] = { Idle };
     static mesi_state_t entry_state[NUM_CORES];
@@ -200,13 +197,21 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     						next_state[core_id] = Send ;
     					}
     				}
+                    if (bus.bus_cmd == kFlush)
+                    {
+                        bus.bus_share = 1;
+                        entry_state[core_id] = Shared;
+                    }
     				if (bus.bus_cmd == kBusRd) //set shared wire
     				{
-    					bus.bus_share = 1 ;
+    					//bus.bus_share = 1 ;
+                        bus_shared[core_id]  = 1;
     					entry_state[core_id] = Shared  ; // If command is kBusRd-change state to shared  - from all states(exclusive, modified or shared)
     				}
-    				else if (bus.bus_cmd == kBusRdX)
+    				if (bus.bus_cmd == kBusRdX)
     				{
+						//bus.bus_share = 0;
+                        bus_shared[core_id] = 0;
     					entry_state[core_id] = Invalid ; // If BusRdX change to Invalid  - from all states(exclusive, modified or shared)
     				}
     				if(progress_clock == 1) // change core state and entry[core_id] state on next clock cycle
@@ -310,6 +315,8 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     		bus.bus_cmd = kFlush;
     		bus.bus_data = dsram[index[core_id]][core_send_counter[core_id]];
     		bus.bus_addr = bus_addr[core_id] + core_send_counter[core_id];
+            bus.bus_share = bus_shared[core_id];
+
     		if(progress_clock == 1)
     		{
     			if(core_send_counter[core_id] == BLOCK_SIZE -1)
@@ -317,7 +324,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				core_send_counter[core_id] = 0;
     				*core_state = Idle;
     				flush_done = 1;
-    				entry[core_id]->state = Shared;
+    				// entry[core_id]->state = Shared;
     				break;
     			}
     			else
@@ -573,16 +580,16 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
 	fprintf(file, "%s ", fetch == -1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", decode.pc);
-	fprintf(file, "%s ", ((decode.opcode == stall) && (decode.pc == fetch)) || decode.opcode == halt || clk < 1 ? "---" : buffer);
+	fprintf(file, "%s ", ((decode.opcode == stall) && (decode.pc == fetch)) || decode.pc < 0 || clk < 1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", exec.pc);
-	fprintf(file, "%s ", ((exec.opcode == stall) && (exec.pc == decode.pc)) || exec.opcode == halt || clk < 2 ? "---" : buffer);
+	fprintf(file, "%s ", ((exec.opcode == stall) && (exec.pc == decode.pc)) || exec.pc < 0 || clk < 2 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", mem.pc);
-	fprintf(file, "%s ", ((mem.opcode == stall) && (mem.pc == exec.pc)) || mem.opcode == halt || clk < 3 ?  "---" : buffer);
+	fprintf(file, "%s ", ((mem.opcode == stall) && (mem.pc == exec.pc)) || mem.pc < 0 || clk < 3 ?  "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", wb.pc);
-	fprintf(file, "%s ", ((wb.opcode == stall) && (wb.pc == mem.pc)) || wb.opcode == halt ||  clk < 4 ? "---" : buffer);
+	fprintf(file, "%s ", ((wb.opcode == stall) && (wb.pc == mem.pc)) || wb.pc < 0 ||  clk < 4 ? "---" : buffer);
     for (int i = 2; i < 16; i++) {
         fprintf(file, "%08X ", registers[i]);
     }
@@ -601,7 +608,7 @@ FILE** create_trace_files(const char *output_files[]) {
         char file_name[100];
 		snprintf(file_name, sizeof(file_name), "%s", output_files[5 + i]);
 
-        
+
 		#ifdef LINUX_MODE
 			files[i] = fopen(file_name, "w");
 			if (files[i] == NULL) {
