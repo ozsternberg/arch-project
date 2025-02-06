@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
   // Define main mem
   static int main_mem[MAIN_MEM_DEPTH] = {0};
-  if(load_main_mem(input_files[4], main_mem) == 1) exit(1);
+  load_main_mem(input_files[4], main_mem);
 
   // Define various variables
   static bus_state_t bus_state = kBusAvailable;
