@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
   // Define main mem
   static int main_mem[MAIN_MEM_DEPTH] = {0};
-  load_main_mem(input_files[4], main_mem);
+  if(load_main_mem(input_files[4], main_mem) == 1) exit(1);
 
   // Define various variables
   static bus_state_t bus_state = kBusAvailable;
@@ -78,12 +78,14 @@ int main(int argc, char *argv[]) {
 
         // Check all the cores for requests
         int i = 0;
-        while (bus_req.bus_cmd == kNoCmd && i < 4)
-        {
-            gnt_core_id = round_robin_arbitrator();
-            bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
-            i++;
-        }
+        //while (bus_req.bus_cmd == kNoCmd && i < 4)
+        //{
+        //    gnt_core_id = round_robin_arbitrator();
+        //    bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
+        //    i++;
+        //}
+
+        gnt_core_id = round_robin_arbitrator();
 
         // Set priority for the req core and progress clk for cores
         progress_clock = 1;

@@ -122,12 +122,14 @@ void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 		file = fopen(file_name, "r");
 		if (file == NULL) {
 			fprintf(stderr, "Error opening file: %s\n", file_name);
+			exit(1);
+		}
 	#else
 		if (fopen_s(&file, file_name, "r") != 0) {
 			fprintf_s(stderr, "Error opening file: %s\n", file_name);
-	#endif
 			exit(1);
 		}
+	#endif
 	if (file == NULL) {
 		fprintf(stderr, "Error opening file %s\n", file_name);
 		exit(1);
