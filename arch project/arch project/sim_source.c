@@ -74,7 +74,7 @@ bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt, int gnt_core_i
 	return core_cmd_rtr;
 }
 
-void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]) {
+int load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]) {
 	FILE *file;
 	char buffer[100];
 	for (int i = 0; i < NUM_CORES; i++) {
@@ -113,9 +113,10 @@ void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *fil
 		}
 		fclose(file);
 	}
+	return 0;
 }
 
-void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
+int load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 	FILE *file;
 	printf("\nLoading main mem from file: %s\n", file_name);
 	#ifdef LINUX_MODE
@@ -143,6 +144,7 @@ void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]) {
 	}
 
 	fclose(file);
+	return 0;
 }
 
 void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size) {

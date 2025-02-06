@@ -161,11 +161,6 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
 
     int flush_done = 0; // Raise signal when flush is done
 
-    // need to handle address
-    // need to handle synchronization
-    // check for Send and receive done flags
-    // wrap procedure as a function
-
     // Bus routine
 	int receive_done = 0;
 
@@ -392,33 +387,6 @@ int get_signed_imm(const int imm) {
 	// If the sign bit is not set, return the immediate value as it is
 	int signed_imm = 0x00000FFF & imm;
 	return signed_imm;
-
-
-
-
-
-
-
-	//char imm_hex[6];
-	//sprintf_s(imm_hex, sizeof(imm_hex), "%05X", imm); // Cast the unsigned decimal to hex
-
-
-	//long int  decimal_imm;
-	//const int bit_width = mem_bit_width;
-
-	// Convert the hex string to a long int assuming it's a signed number in 2's complement
-	//decimal_imm = strtol(imm_hex, NULL, 16);
-
-	// Define the sign bit position
-	//long int sign_bit_mask = 1L << (bit_width - 1); // 2^19
-
-	// Check if the sign bit is set (if the number is negative in 2's complement)
-	//if (decimal_imm & sign_bit_mask) {
-	//	 If the sign bit is set, convert to negative by subtracting 2^bit_width
-	//	decimal_imm -= (1L << bit_width);
-	//}
-
-	//return decimal_imm;
 };
 
 int execute_op(const instrc instrc, int registers[])

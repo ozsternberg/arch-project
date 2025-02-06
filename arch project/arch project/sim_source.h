@@ -1,7 +1,7 @@
 #ifndef SIM_H
 #define SIM_H
 
-#define NUM_OF_BLOCKS    64
+#define NUM_OF_BLOCKS  64
 #define DSRAM_DEPTH    256
 #define DSRAM_WIDTH    32 // Bits
 #define BLOCK_SIZE     4  // Words (32bits)
@@ -15,11 +15,21 @@
 #define MEM_RD_LATENCY 15 // Time until memory start returning the data
 #define MEM_FILE_SIZE  1024
 
+//=============================================================================
+// Defines for enabling features
+//=============================================================================
 #define OPTIMIZATION_ON
+#define RR_OPT
+#define ALLOW_PARTIAL_ARGUMENTS
 //#define DEBUG_ON
 // #ifndef LINUX_MODE
 // #define LINUX_MODE
 // #endif
+
+//=============================================================================
+// Structs and types
+//=============================================================================
+
 typedef enum
 {
 	kNoCmd,
@@ -119,6 +129,10 @@ typedef struct
 extern const char *input_files[];
 extern const char *output_files[];
 
+//=============================================================================
+// Function declarations
+//=============================================================================
+
 cache_addr_s parse_addr(int addr);
 
 int round_robin_arbitrator();
@@ -127,9 +141,9 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int 
 
 bus_cmd_s cores(bus_cmd_s bus_req, int priority_for_gnt, int gnt,int gnt_core_id, int progress_clk,int clk, const char *output_files[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);
 
-void load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]);
+int load_mem_files(unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE],  char *file_names[]);
 
-void load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]);
+int load_main_mem(const char *file_name, int lines[MAIN_MEM_DEPTH]);
 
 void store_mem_to_file(const char *file_name, int mem_array[],int mem_array_size);
 

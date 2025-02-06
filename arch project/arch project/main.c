@@ -13,6 +13,8 @@ int main(int argc, char *argv[]) {
     "tsram0.txt", "tsram1.txt", "tsram2.txt", "tsram3.txt",
     "stats0.txt", "stats1.txt", "stats2.txt", "stats3.txt"
   };
+
+  #ifdef ALLOW_PARTIAL_ARGUMENTS
   // We allow for including only the input files, if one input file is missing we wil use the default naming
   if (argc < 6)
   {
@@ -27,14 +29,27 @@ int main(int argc, char *argv[]) {
 
   const char **input_files  = argc < 6 ? default_input_files  : (const char **)&argv[1];
   const char **output_files = argc < 28 ? default_output_files : (const char **)&argv[6];
-
+#else
+  if(argc < 28 && argc > 1) {
+    printf("Error: Number of input files does not match the requirement. Expected 27 but got %d\n", argc - 1);
+    return 1;
+  }
+  const char **input_files  = argc < 28 ? default_input_files  : (const char **)&argv[1];
+  const char **output_files = argc < 28 ? default_output_files : (const char **)&argv[6];
+#endif
 
   static unsigned int mem_files[NUM_CORES][MEM_FILE_SIZE] = {0};
-  load_mem_files(mem_files, (char **)input_files);
+  if (load_mem_files(mem_files, (char **)input_files) !=0) {
+    printf("Error loading mem files\n");
+    return 1;
+  }
 
   // Define main mem
   static int main_mem[MAIN_MEM_DEPTH] = {0};
-  load_main_mem(input_files[4], main_mem);
+  if (load_main_mem(input_files[4], main_mem) != 0) {
+    printf("Error loading main mem\n");
+    return 1;
+  }
 
   // Define various variables
   static bus_state_t bus_state = kBusAvailable;
@@ -70,23 +85,22 @@ int main(int argc, char *argv[]) {
         priority = 1;
         bus_req.bus_cmd = kNoCmd;
 
-        //int gnt_core_id = round_robin_arbitrator();
 #ifdef DEBUG_ON
         printf("BUS | State: kBusAvailable, Gnt Core Id: %d, Clk: %d\n\n", gnt_core_id,clk);
 #endif
-        //bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock,clk, output_files,mem_files);
 
         // Check all the cores for requests
+#ifdef RR_OPT
         int i = 0;
-        //while (bus_req.bus_cmd == kNoCmd && i < 4)
-        //{
-        //    gnt_core_id = round_robin_arbitrator();
-        //    bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
-        //    i++;
-        //}
-
+        while (bus_req.bus_cmd == kNoCmd && i < 4)
+        {
+            gnt_core_id = round_robin_arbitrator();
+            bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
+            i++;
+        }
+#else
         gnt_core_id = round_robin_arbitrator();
-
+#endif
         // Set priority for the req core and progress clk for cores
         progress_clock = 1;
         bus_req = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
