@@ -16,6 +16,15 @@ cache_addr_s parse_addr(int addr)
 	return cache_addr;
 }
 
+int compose_addr(int tag, int set, int offset)
+{
+	int addr = 0;
+	addr |= (tag << (SET_WIDTH + OFFSET_WIDTH));
+	addr |= (set << OFFSET_WIDTH);
+	addr |= offset;
+	return addr;
+}
+
 // Round robin arbitrator implementation
 int round_robin_arbitrator()
 {

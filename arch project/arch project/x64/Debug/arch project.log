@@ -1,2 +1,4 @@
-﻿  core_source.c
+﻿  core.c
+  core_source.c
+  Generating Code...
   arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe

@@ -85,9 +85,7 @@ int main(int argc, char *argv[]) {
         priority = 1;
         bus_req.bus_cmd = kNoCmd;
 
-#ifdef DEBUG_ON
-        printf("BUS | State: kBusAvailable, Gnt Core Id: %d, Clk: %d\n\n", gnt_core_id,clk);
-#endif
+
 
         // Check all the cores for requests
 #ifdef RR_OPT
@@ -100,6 +98,9 @@ int main(int argc, char *argv[]) {
         }
 #else
         gnt_core_id = round_robin_arbitrator();
+#ifdef DEBUG_ON
+        printf("BUS | State: kBusAvailable, Gnt Core Id: %d, Clk: %d\n\n", gnt_core_id, clk);
+#endif
 #endif
         // Set priority for the req core and progress clk for cores
         progress_clock = 1;

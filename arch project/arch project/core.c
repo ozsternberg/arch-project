@@ -70,7 +70,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	}
 
 	#ifdef TIMEOUT_ON
-	if (clk > 2000)
+	if (clk > 5000)
 	{
 		puts("Reached timeout\n");
 		error_flag = 1;
@@ -267,39 +267,13 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		#ifdef DEBUG_ON
 		puts("MEM ISSUED STALL");
 		#endif
-		//if (mem_wb->instrc_d.opcode == lw && gnt == 1 && progress_clk == 1) total_rmis[core_id]++;
-		//if (mem_wb->instrc_d.opcode == sw && gnt == 1 && progress_clk == 1) total_wmis[core_id]++;
 		mem_wb->instrc_d.opcode = stall;
 		if (progress_clk == 1) total_mem_stall[core_id]++;
 		next_pc = *pc; // decode the same instrc next clk
 
 		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
 	}
-	//if (progress_clk == 1)
-	//{
-	//	if (mem_wb->instrc_d.opcode == lw)
-	//	{
-	//		if ((cache_state[core_id] == kIdle) && mem_rsp.hit == kHit)
-	//		{
-	//			total_rhit[core_id]++;
-	//		}
-	//		else
-	//		{
-	//			total_rmis[core_id]++;
-	//		}
-	//	}
-	//	else if (mem_wb->instrc_d.opcode == sw)
-	//	{
-	//		if ((cache_state[core_id] == kIdle) && mem_rsp.hit != kWrMiss)
-	//		{
-	//			total_whit[core_id]++;
-	//		}
-	//		else
-	//		{
-	//			total_wmis[core_id]++;
-	//		}
-	//	}
-	//}
+	
 	#ifdef DEBUG_ON
 	printf("Core: %x, MEMORY END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x, Data(Hex): %x\n", core_id, opcode_to_string(mem_wb->instrc_d.opcode), mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc, mem_wb->data_d);
 	#endif

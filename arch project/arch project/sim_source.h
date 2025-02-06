@@ -135,6 +135,8 @@ extern const char *output_files[];
 
 cache_addr_s parse_addr(int addr);
 
+int compose_addr(int tag, int set, int offset);
+
 int round_robin_arbitrator();
 
 bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clock, int clk, const char *output_files[], unsigned int mem[NUM_CORES][MEM_FILE_SIZE]);

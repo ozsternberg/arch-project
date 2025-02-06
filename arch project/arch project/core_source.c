@@ -163,7 +163,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 				{
                     perror("Halt arrived mid transaction!\n\n");
 				}
-                if ((bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC) != (addr & 0xFFFFFFFC))
+                if ((bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC) != (addr & 0xFFFFFFFC) && hit_type == kRdMiss)
                 {
                     printf("Data is received from wrong address\n");
                 }
@@ -291,12 +291,13 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
                     bus_addr[core_id] = bus.bus_addr & 0xFFFFFFFC; // save a copy of the aligned trans address
     				// Split bus address to tsram and dsram parameters
     				offset[core_id] = parse_addr(bus.bus_addr).offset;
-    				index[core_id] = parse_addr(bus.bus_addr).set;
-    				tag[core_id] = parse_addr(bus.bus_addr).tag;
+    				index[core_id]  = parse_addr(bus.bus_addr).set;
+    				tag[core_id]    = parse_addr(bus.bus_addr).tag;
     				entry[core_id] = &tsram[index[core_id]];
     				entry_state[core_id] = entry[core_id]->state;
                     next_state[core_id] = Idle;
 					int update_mem = dsram[index[core_id]][offset[core_id]];
+                    bus_shared[core_id] = 0;
 
     				if(hit_type == kRdMiss)  // If read miss - set bus_cmd to BusRd
     				{
@@ -320,7 +321,9 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				{
     					bus.bus_cmd = kFlush;
     					bus.bus_data = dsram[index[core_id]][0];
-    					next_state[core_id] = Send;
+                        next_state[core_id] = Send;
+                        bus_addr[core_id] = compose_addr(entry[core_id]->tag, index[core_id], 0);
+                        bus.bus_addr = bus_addr[core_id];
     					core_send_counter[core_id] = 1;
     				}
 
@@ -381,7 +384,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				core_send_counter[core_id] = 0;
     				*core_state = Idle;
     				flush_done = 1;
-    				// entry[core_id]->state = Shared;
+    				 entry[core_id]->state = bus.bus_share == 1 ? Shared : Exclusive;
     				break;
     			}
     			else
