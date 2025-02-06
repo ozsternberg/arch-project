@@ -83,7 +83,7 @@ typedef enum
 } core_state_t;
 
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data,int progress_clk);
-mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id);
+mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr, opcode_t op, int data, int progress_clk, cache_state_t* cache_state, core_state_t* core_state, bus_cmd_s bus, int gnt, int core_id, int* total_whit, int* total_wmis, int* total_rhit, int* total_rmis);
 bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_cmd_s bus, int progress_clock, int gnt, core_state_t * core_state, int core_id, int core_req_trans, int addr, int data, cache_hit_t hit_type);
 
 

@@ -46,7 +46,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 	int *pc = &pc_arr[core_id];
 
-	int registers[NUM_OF_REGS] = {0};	
+	int registers[NUM_OF_REGS] = {0};
 	memcpy(registers, registers_arr[core_id], sizeof(registers));
 
 	int busy_regs[NUM_OF_REGS] = { 0 };
@@ -84,7 +84,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 #ifdef OPTIMIZATION_ON
 	if (progress_clk == 0)
 	{
-		mem_rsp_s mem_rsp = handle_mem(dsram[core_id],tsram[core_id], ex_mem->data_q, ex_mem->instrc_q.opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
+		mem_rsp_s mem_rsp = handle_mem(dsram[core_id],tsram[core_id], ex_mem->data_q, ex_mem->instrc_q.opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id, &total_whit[core_id], &total_wmis[core_id], &total_rhit[core_id], &total_rmis[core_id]); // Need to provide the data from ex stage
 		return mem_rsp.bus;
 	}
 #endif
@@ -105,7 +105,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 	dec_ex->instrc_d = fe_dec->instrc_q;
 
 	dec_ex->pc_d = fe_dec->pc_q;
-	
+
 	if (halt_in_fetch[core_id])
 	{
 		dec_ex->instrc_d.pc = -1;
@@ -257,7 +257,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 
 
 	mem_rsp_s mem_rsp;
-	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id); // Need to provide the data from ex stage
+	mem_rsp = handle_mem(dsram[core_id],tsram[core_id], address, opcode, registers[ex_mem->instrc_q.rd], progress_clk, &cache_state[core_id], &core_state[core_id], bus_cmd, gnt,core_id, &total_whit[core_id], &total_wmis[core_id], &total_rhit[core_id], &total_rmis[core_id]); // Need to provide the data from ex stage
 	mem_wb->instrc_d = ex_mem->instrc_q;
 	mem_wb->data_d = opcode == lw ? mem_rsp.data : ex_mem->data_q; // If the op is lw we take the data from mem stage, if not we take the data from ex stage
 	mem_wb->pc_d = ex_mem->pc_q;
@@ -267,25 +267,39 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 		#ifdef DEBUG_ON
 		puts("MEM ISSUED STALL");
 		#endif
-		if (mem_wb->instrc_d.opcode == lw && gnt == 1 && progress_clk == 1) total_rmis[core_id]++;
-		if (mem_wb->instrc_d.opcode == sw && gnt == 1 && progress_clk == 1) total_wmis[core_id]++;
+		//if (mem_wb->instrc_d.opcode == lw && gnt == 1 && progress_clk == 1) total_rmis[core_id]++;
+		//if (mem_wb->instrc_d.opcode == sw && gnt == 1 && progress_clk == 1) total_wmis[core_id]++;
 		mem_wb->instrc_d.opcode = stall;
 		if (progress_clk == 1) total_mem_stall[core_id]++;
 		next_pc = *pc; // decode the same instrc next clk
 
 		if (dec_set_busy) busy_regs[dec_ex->instrc_d.rd] = busy_reg_before; //If dec already set the reg to busy we need to revert it
 	}
-	else if (mem_wb->instrc_q.pc == mem_wb->instrc_d.pc)
-	{
-		if ((mem_wb->instrc_d.opcode == lw) && (progress_clk == 1))
-		{
-			total_rhit[core_id]++;
-		}
-		else if ((mem_wb->instrc_d.opcode == sw) && (progress_clk == 1))
-		{
-			total_whit[core_id]++;
-		}
-	}
+	//if (progress_clk == 1)
+	//{
+	//	if (mem_wb->instrc_d.opcode == lw)
+	//	{
+	//		if ((cache_state[core_id] == kIdle) && mem_rsp.hit == kHit)
+	//		{
+	//			total_rhit[core_id]++;
+	//		}
+	//		else
+	//		{
+	//			total_rmis[core_id]++;
+	//		}
+	//	}
+	//	else if (mem_wb->instrc_d.opcode == sw)
+	//	{
+	//		if ((cache_state[core_id] == kIdle) && mem_rsp.hit != kWrMiss)
+	//		{
+	//			total_whit[core_id]++;
+	//		}
+	//		else
+	//		{
+	//			total_wmis[core_id]++;
+	//		}
+	//	}
+	//}
 	#ifdef DEBUG_ON
 	printf("Core: %x, MEMORY END opcode: %s, rd: %x, rs: %x, rt: %x, imm: %x, pc: %x, Data(Hex): %x\n", core_id, opcode_to_string(mem_wb->instrc_d.opcode), mem_wb->instrc_d.rd, mem_wb->instrc_d.rs, mem_wb->instrc_d.rt, mem_wb->instrc_d.imm, mem_wb->instrc_d.pc, mem_wb->data_d);
 	#endif
@@ -347,7 +361,7 @@ bus_cmd_s core(int core_id, int gnt, bus_cmd_s bus_cmd, int progress_clk, int cl
 			stall_reg(ex_mem);
 		}
 		*pc = halt_in_fetch[core_id] == 0 ? (next_pc & 0x03FF) : *pc; // if halt don't progress pc, take only 10 lot bits from next_pc
-		
+
 		if (halt_in_fetch[core_id] == 1)
 		{
 			fe_dec->instrc_d.pc = -1;

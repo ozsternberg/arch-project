@@ -19,7 +19,7 @@
 // Defines for enabling features
 //=============================================================================
 #define OPTIMIZATION_ON
-#define RR_OPT
+//#define RR_OPT
 #define ALLOW_PARTIAL_ARGUMENTS
 //#define DEBUG_ON
 // #ifndef LINUX_MODE
@@ -78,7 +78,7 @@ typedef enum
 	kIdle,
 	kWaitForGnt,
 	kWaitForFlush,
-	kStop
+	kCompleteReq
 } cache_state_t;
 
 typedef struct

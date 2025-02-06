@@ -6,7 +6,9 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 {
 
     if (op != lw && op != sw) {
-        return (cache_query_rsp_s) { kHit, 0 };
+        cache_query_rsp_s cache_query_rsp = {0};
+        cache_query_rsp.hit_type = kHit;
+        return cache_query_rsp;
     }
     cache_addr_s cache_addr = parse_addr(addr);
 
@@ -22,7 +24,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 
     else if (op == lw)
     {
-        if (hit && data_state != Invalid) // Rd hit
+        if (hit && (data_state != Invalid)) // Rd hit
         {
             word     = dsram[cache_addr.set][cache_addr.offset];
             hit_type = kHit;
@@ -36,7 +38,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 
     else
     {
-        if(hit && data_state != Invalid) // Wr hit
+        if (hit && (data_state != Invalid)) // Wr hit
         {
             if (progress_clk && data_state != Shared)
             {
@@ -56,7 +58,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
     return  cache_query_rsp;
 }
 
-mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id)
+mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id, int * total_whit, int * total_wmis, int* total_rhit, int* total_rmis)
 {
     cache_query_rsp_s cache_query_rsp = cache_query(dsram, tsram, addr, op, data, progress_clk);
     cache_hit_t hit_type = cache_query_rsp.hit_type;
@@ -73,7 +75,12 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
         perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
     }
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
-	mem_rsp_s mem_rsp = {0, cache_query_rsp.data, bus_routine_rsp.bus_cmd};
+    
+    mem_rsp_s mem_rsp = { 0 };
+    mem_rsp.data  = cache_query_rsp.data;
+    mem_rsp.bus   = bus_routine_rsp.bus_cmd;
+    mem_rsp.stall = 0;
+    mem_rsp.hit   = hit_type;
 
     cache_state_t next_cache_state = *cache_state;
 
@@ -81,20 +88,45 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     {
         case kIdle:
             mem_rsp.stall = 0;
-            if (hit_type == kHit || core_req_trans == 0 || op == halt) break; // If hit or no req do nothing
+            if (hit_type == kHit || core_req_trans == 0 || op == halt)
+            {
+                if (progress_clk) {
+                if (op == sw) (*total_whit)++;
+                else if (op == lw) (*total_rhit)++;
+                }
 
+                break; // If hit or no req do nothing
+            }
             // If gnt is 0, stall
             if (gnt == 0)
             {
+                if (progress_clk)
+                {
+                if (op == sw && hit_type == kWrMiss) (*total_wmis)++;
+                else (*total_rmis)++;
+                }
+
                 mem_rsp.stall = 1;
                 next_cache_state = kWaitForGnt;
                 break;
             }
 
-            if (hit_type == kWrHitShared) break; //If gnt == 1 and hit is shared stay Idle
+            if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared stay Idle
+            {
+                if (progress_clk)
+                {
+                (*total_whit)++;
+                }
+                break; 
+            }
 
             else // If gnt == 1 and miss, wait for flush or send
             {
+                if (progress_clk)
+                {
+                    if (op == sw) (*total_wmis)++;
+                    else (*total_rmis)++;
+                }
                 mem_rsp.stall = 1;
                 next_cache_state = kWaitForFlush;
                 break;
@@ -104,8 +136,12 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
             mem_rsp.stall = 1;
             if (gnt == 0) break; // If gnt is 0, stall
 
-            if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared do stay Idle
+            if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared stay Idle
             {
+                if (progress_clk)
+                {
+                    (*total_whit)++;
+                }
                 mem_rsp.stall = 0;
                 next_cache_state = kIdle;
                 break;
@@ -131,9 +167,35 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
                 {
                     printf("Data is received from wrong address\n");
                 }
-                next_cache_state = kIdle;
+                next_cache_state = kCompleteReq;
             }
 
+            break;
+
+        case kCompleteReq:
+            mem_rsp.stall = 0;
+            next_cache_state = kIdle;
+            if (hit_type == kHit || op == halt)
+            {   
+                next_cache_state = kIdle;
+                break; // If hit or no req do nothing
+            }
+            // If gnt is 0, stall
+            if (gnt == 0)
+            {
+                mem_rsp.stall = 1;
+                next_cache_state = kWaitForGnt;
+                break;
+            }
+
+            if (hit_type == kWrHitShared) break; //If gnt == 1 and hit is shared go Idle
+
+            else // If gnt == 1 and miss, wait for flush or send
+            {
+                mem_rsp.stall = 1;
+                next_cache_state = kWaitForFlush;
+                break;
+            }
             break;
     }
 
