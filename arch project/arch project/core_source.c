@@ -338,7 +338,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
 
     				if(progress_clock == 1)
     				{
-    					entry[core_id]->state = entry_state[core_id];
+    					entry[core_id]->state = hit_type == kModifiedMiss ? Modified : entry_state[core_id];
     					*core_state = next_state[core_id];
     					entry[core_id]->tag = tag[core_id];
     					dsram[index[core_id]][offset[core_id]] = update_mem;
