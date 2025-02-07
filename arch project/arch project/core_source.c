@@ -75,7 +75,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
         perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
     }
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
-    
+
     mem_rsp_s mem_rsp = { 0 };
     mem_rsp.data  = cache_query_rsp.data;
     mem_rsp.bus   = bus_routine_rsp.bus_cmd;
@@ -117,7 +117,7 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
                 {
                 (*total_whit)++;
                 }
-                break; 
+                break;
             }
 
             else // If gnt == 1 and miss, wait for flush or send
@@ -175,8 +175,12 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
         case kCompleteReq:
             mem_rsp.stall = 0;
             next_cache_state = kIdle;
+            if (op != sw && op != lw)
+            {
+                printf("Error - non memory operation in the end of transaction\n");
+            } // If not a memory operation do nothing
             if (hit_type == kHit || op == halt)
-            {   
+            {
                 next_cache_state = kIdle;
                 break; // If hit or no req do nothing
             }
@@ -321,10 +325,13 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				{
     					bus.bus_cmd = kFlush;
     					bus.bus_data = dsram[index[core_id]][0];
+                        tag[core_id] = entry[core_id]->tag;
                         next_state[core_id] = Send;
                         bus_addr[core_id] = compose_addr(entry[core_id]->tag, index[core_id], 0);
                         bus.bus_addr = bus_addr[core_id];
     					core_send_counter[core_id] = 1;
+                        entry_state[core_id] = Shared;
+                        bus_shared[core_id] = 0;
     				}
 
     				if(progress_clock == 1)
@@ -384,7 +391,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				core_send_counter[core_id] = 0;
     				*core_state = Idle;
     				flush_done = 1;
-    				 entry[core_id]->state = bus.bus_share == 1 ? Shared : Exclusive;
+    				entry[core_id]->state = entry_state[core_id];
     				break;
     			}
     			else
@@ -404,12 +411,13 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
             }
             if (bus.bus_addr == ((addr & 0xFFFFFFFC) + core_receive_counter[core_id]))
     		{
-                if (progress_clock == 0) break;
 
-    			dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
 
     			if(core_receive_counter[core_id] == BLOCK_SIZE -1)
     			{
+    				flush_done = 1;
+
+                    if (progress_clock == 0) break;
     				if(bus.bus_share == 0)
     				{
     					entry[core_id]->state = Exclusive; // If no other cache asserts shared ,set entry_state[core_id] to exclusive
@@ -419,10 +427,11 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					entry[core_id]->state = Shared; // If another cache asserts shared set entry[core_id] to shared
     				}
     				core_receive_counter[core_id] = 0;
-    				flush_done = 1;
     				*core_state = Idle;
     				break;
     			}
+                if (progress_clock == 0) break;
+    		    dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
                 core_receive_counter[core_id]++;
 
     		}
