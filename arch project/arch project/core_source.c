@@ -421,12 +421,13 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
             }
             if (bus.bus_addr == ((addr & 0xFFFFFFFC) + core_receive_counter[core_id]))
     		{
+                if (progress_clock == 0) break;
+
+    		    dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
 
     			if(core_receive_counter[core_id] == BLOCK_SIZE -1)
     			{
-    				flush_done = 1;
 
-                    if (progress_clock == 0) break;
     				if(bus.bus_share == 0)
     				{
     					entry[core_id]->state = Exclusive; // If no other cache asserts shared ,set entry_state[core_id] to exclusive
@@ -436,11 +437,11 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					entry[core_id]->state = Shared; // If another cache asserts shared set entry[core_id] to shared
     				}
     				core_receive_counter[core_id] = 0;
+    				flush_done = 1;
     				*core_state = Idle;
     				break;
     			}
                 if (progress_clock == 0) break;
-    		    dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
                 core_receive_counter[core_id]++;
 
     		}
