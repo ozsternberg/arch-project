@@ -163,9 +163,9 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 				{
                     perror("Halt arrived mid transaction!\n\n");
 				}
-                if ((bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC) != (addr & 0xFFFFFFFC) && hit_type == kRdMiss)
+                if (((bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC) != (addr & 0xFFFFFFFC)) && (hit_type != kModifiedMiss))
                 {
-                    printf("Data is received from wrong address\n");
+                    printf("Data is received from wrong address: %d and should come from: %d on hit type: %d\n",bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC,addr & 0xFFFFFFFC,hit_type);
                 }
                 next_cache_state = kCompleteReq;
             }
@@ -289,6 +289,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
                 bus.bus_share  = 0;
                 bus.bus_data   = 0;
                 bus.bus_addr   = 0;
+                bus.only_invalidate = 0;
     			if(core_req_trans == 1)
     			{
                     bus.bus_addr = addr;
@@ -319,6 +320,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					bus.bus_cmd = kBusRdX;
     					entry_state[core_id] = Modified;
     					update_mem = data;
+                        bus.only_invalidate = 1;
     				}
 
                     else if (hit_type == kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
@@ -358,7 +360,10 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
 
     		next_state[core_id] = WaitForFlush;
             cache_addr_s incoming_addr = parse_addr(bus.bus_addr);
-    		if(bus.bus_cmd == kFlush)
+
+            if(progress_clock == 0) break;
+
+            if(bus.bus_cmd == kFlush)
     		{
     			if(bus.bus_addr != (addr & 0xFFFFFFFC))
     			{
@@ -366,12 +371,12 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     			}
     			next_state[core_id] = Receive;
     			core_receive_counter[core_id] = 1;
-    		}
-    		if(progress_clock == 1)
-    		{
-    			*core_state = next_state[core_id];
                 dsram[incoming_addr.set][incoming_addr.offset] = bus.bus_data;
     		}
+
+
+    		*core_state = next_state[core_id];
+
     		break;
 
     	case Send:
@@ -409,9 +414,13 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
             {
                 printf("The expected aligned addr is %d and the saved aligned addr is %d\n", addr & 0xFFFFFFFC, bus_addr[core_id]); // Sanity check
             }
+
+            if ((bus.bus_addr & 0x3) != core_receive_counter[core_id])
+            {
+                printf("Mismatch in the offest of the received data, offset: %d expected %d\n", bus.bus_addr & 0x3, core_receive_counter[core_id]);
+            }
             if (bus.bus_addr == ((addr & 0xFFFFFFFC) + core_receive_counter[core_id]))
     		{
-
 
     			if(core_receive_counter[core_id] == BLOCK_SIZE -1)
     			{

@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
         if (bus_req.bus_cmd == kNoCmd) break; // If the current core does not have a req we move to the next one
 
         if (bus_req.bus_cmd == kBusRd || bus_req.bus_cmd == kBusRdX) { // We wait for flush from either another core or the memory
-          bus_state = kBusWaitMem;
+          bus_state = bus_req.only_invalidate == 1 ? kBusAvailable : kBusWaitMem;
           req_core = bus_req.bus_origid;
           mem_wait_counter = 0;
           gnt = 0;
@@ -232,6 +232,7 @@ int main(int argc, char *argv[]) {
 
         if (mem_rd_counter == BLOCK_SIZE - 1) {
           bus_state = kBusAvailable;
+          mem_rd_counter = 0;
           break;
         }
         mem_rd_counter++;

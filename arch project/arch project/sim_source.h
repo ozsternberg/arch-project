@@ -88,6 +88,7 @@ typedef struct
 	unsigned int	 bus_addr;
 	int			     bus_data;
 	int			     bus_share;
+	int 			 only_invalidate;
 } bus_cmd_s;
 
 
