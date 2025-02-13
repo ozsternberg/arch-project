@@ -178,6 +178,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="core_sim.h" />
+    <ClInclude Include="core_source.h" />
     <ClInclude Include="sim.h" />
     <ClInclude Include="sim_source.h" />
   </ItemGroup>
@@ -218,6 +219,11 @@
     <Text Include="stats1.txt" />
     <Text Include="stats2.txt" />
     <Text Include="stats3.txt" />
+    <Text Include="test\imem0.txt" />
+    <Text Include="test\imem1.txt" />
+    <Text Include="test\imem2.txt" />
+    <Text Include="test\imem3.txt" />
+    <Text Include="test\memin.txt" />
     <Text Include="tsram0.txt" />
     <Text Include="tsram1.txt" />
     <Text Include="tsram2.txt" />

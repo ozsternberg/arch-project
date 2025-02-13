@@ -24,6 +24,9 @@
     <ClInclude Include="sim_source.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="core_source.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.c">
@@ -94,5 +97,10 @@
     <Text Include="stats1.txt" />
     <Text Include="stats2.txt" />
     <Text Include="stats3.txt" />
+    <Text Include="test\imem0.txt" />
+    <Text Include="test\imem1.txt" />
+    <Text Include="test\imem2.txt" />
+    <Text Include="test\imem3.txt" />
+    <Text Include="test\memin.txt" />
   </ItemGroup>
 </Project>

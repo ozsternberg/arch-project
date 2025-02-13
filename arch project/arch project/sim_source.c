@@ -268,7 +268,9 @@ void append_bus_trace_line(const char* file_name, int cycle, int bus_origid, int
 			fclose(file);
 		}
 		else {
-			printf("Error opening %s\n", file_name);
+#ifdef DEBUG_ON
+			printf("Error opening %s in clock %d in core %d cmd: %d addr: %d data: %d\n", file_name, cycle, bus_origid, bus_cmd, bus_addr, bus_data);
+#endif
 		}
 	}
 }

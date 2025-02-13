@@ -1,0 +1,35 @@
+add		$r14	$zero	$imm 256		// num of iterations		00E01100
+add		$r15	$zero	$imm 1024								00F01400
+add		$r2		$zero	$zero			// first vector start - 0	00200000
+mul		$r3		$r15	$imm 4			// sec vector start - 4096	053F1004						
+mul		$r4		$r15	$imm 8			// sum vector start - 8192	054F1008
+
+LOOP:												
+lw		$r5		$r2		$zero			// load first vector 1		10520000
+lw		$r6		$r2		$imm 1			// load first vector 2		10621001
+lw		$r7		$r2		$imm 2			// load first vector 3		10721002
+lw		$r8		$r2		$imm 3			// load first vector 4		10821003
+lw		$r9		$r3		$zero			// load sec vector 1		10930000
+lw		$r10	$r3		$imm 1			// load sec vector 2		10A31001
+lw		$r11	$r3		$imm 2			// load sec vector 3		10B31002
+lw		$r12	$r3		$imm 3			// load sec vector 4		10C31003
+
+add		$r5		$r5		$r9				// add first and sec vector 1		00559000
+add		$r6		$r6		$r10			// add first and sec vector 2		0066A000
+add		$r7		$r7		$r11			// add first and sec vector 3		0077B000
+add		$r8		$r8		$r12			// add first and sec vector 4		0088C000
+
+sw		$r5		$r4		$zero			// store sum vector 1		11540000
+sw		$r6		$r4		$imm 1			// store sum vector 2		11641001
+sw		$r7		$r4		$imm 2			// store sum vector 3		11741002
+sw		$r8		$r4		$imm 3			// store sum vector 4		11841003
+
+add		$r2		$r2		$imm 4			// increment first vector	00221004
+add		$r3		$r3		$imm 4			// increment sec vector		00331004
+add		$r4		$r4		$imm 4			// increment sum vector		00441004
+add		$r13	$r13	$imm 1			// increment counter		00DD1001
+
+bne		$imm	$r13	$r14	LOOP	// loop 256 times			0A1DE005
+
+add		$r15	$zero	$zero			// pre halt				00F00000
+halt										//						14000000

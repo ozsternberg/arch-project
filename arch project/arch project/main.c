@@ -196,10 +196,12 @@ int main(int argc, char *argv[]) {
         priority = 0;
 
         core_cmd = cores(bus_req, priority, gnt, gnt_core_id, progress_clock, clk, output_files, mem_files);
+#ifdef DEBUG_ON
         if (memcmp(&bus_req, &core_cmd, sizeof(bus_cmd_s)) != 0)
         {
             printf("Error - bus_req should not change when data returns from main mem!\n"); // bus_req should not change when data returns from main mem
         }
+#endif
         if (mem_rd_counter == BLOCK_SIZE - 1) {
           bus_state = kBusAvailable;
           mem_rd_counter = 0;
