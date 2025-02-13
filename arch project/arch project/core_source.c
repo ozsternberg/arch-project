@@ -14,7 +14,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 
     mesi_state_t data_state = tsram[cache_addr.set].state;
     int hit = tsram[cache_addr.set].tag == cache_addr.tag ? 1 : 0;
-    int word = 0;
+    int word = data;
     cache_hit_t hit_type;
 
     if (data_state == Modified && hit == 0)
