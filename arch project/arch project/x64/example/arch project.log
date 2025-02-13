@@ -1,0 +1,7 @@
+﻿  core.c
+  core_sim.c
+  core_source.c
+  main.c
+  sim_source.c
+  Generating Code...
+  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\example\arch project.exe

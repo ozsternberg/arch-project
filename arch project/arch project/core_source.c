@@ -6,7 +6,9 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 {
 
     if (op != lw && op != sw) {
-        return (cache_query_rsp_s) { kHit, 0 };
+        cache_query_rsp_s cache_query_rsp = {0};
+        cache_query_rsp.hit_type = kHit;
+        return cache_query_rsp;
     }
     cache_addr_s cache_addr = parse_addr(addr);
 
@@ -22,7 +24,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 
     else if (op == lw)
     {
-        if (hit && data_state != Invalid) // Rd hit
+        if (hit && (data_state != Invalid)) // Rd hit
         {
             word     = dsram[cache_addr.set][cache_addr.offset];
             hit_type = kHit;
@@ -36,7 +38,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
 
     else
     {
-        if(hit && data_state != Invalid) // Wr hit
+        if (hit && (data_state != Invalid)) // Wr hit
         {
             if (progress_clk && data_state != Shared)
             {
@@ -56,7 +58,7 @@ cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int 
     return  cache_query_rsp;
 }
 
-mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id)
+mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id, int * total_whit, int * total_wmis, int* total_rhit, int* total_rmis)
 {
     cache_query_rsp_s cache_query_rsp = cache_query(dsram, tsram, addr, op, data, progress_clk);
     cache_hit_t hit_type = cache_query_rsp.hit_type;
@@ -67,13 +69,18 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     {
         printf("Non mem opcode arrived in the middle of transaction\n");
     }
-    //if (op == halt) return (mem_rsp_s) {0, 0, bus};
+
     if (op == stall && core_req_trans)
     {
         perror("Something went wrong, a stall go into mem stage in the middle of transaction!");
     }
     bus_routine_rsp_s bus_routine_rsp = bus_routine(dsram,tsram,bus,progress_clk,gnt,core_state,core_id,core_req_trans,addr,cache_query_rsp.data,hit_type);
-	mem_rsp_s mem_rsp = {0, cache_query_rsp.data, bus_routine_rsp.bus_cmd};
+
+    mem_rsp_s mem_rsp = { 0 };
+    mem_rsp.data  = cache_query_rsp.data;
+    mem_rsp.bus   = bus_routine_rsp.bus_cmd;
+    mem_rsp.stall = 0;
+    mem_rsp.hit   = hit_type;
 
     cache_state_t next_cache_state = *cache_state;
 
@@ -81,20 +88,45 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
     {
         case kIdle:
             mem_rsp.stall = 0;
-            if (hit_type == kHit || core_req_trans == 0 || op == halt) break; // If hit or no req do nothing
+            if (hit_type == kHit || core_req_trans == 0 || op == halt)
+            {
+                if (progress_clk) {
+                if (op == sw) (*total_whit)++;
+                else if (op == lw) (*total_rhit)++;
+                }
 
+                break; // If hit or no req do nothing
+            }
             // If gnt is 0, stall
             if (gnt == 0)
             {
+                if (progress_clk)
+                {
+                if (op == sw && hit_type == kWrMiss) (*total_wmis)++;
+                else (*total_rmis)++;
+                }
+
                 mem_rsp.stall = 1;
                 next_cache_state = kWaitForGnt;
                 break;
             }
 
-            if (hit_type == kWrHitShared) break; //If gnt == 1 and hit is shared stay Idle
+            if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared stay Idle
+            {
+                if (progress_clk)
+                {
+                (*total_whit)++;
+                }
+                break;
+            }
 
             else // If gnt == 1 and miss, wait for flush or send
             {
+                if (progress_clk)
+                {
+                    if (op == sw) (*total_wmis)++;
+                    else (*total_rmis)++;
+                }
                 mem_rsp.stall = 1;
                 next_cache_state = kWaitForFlush;
                 break;
@@ -104,8 +136,12 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
             mem_rsp.stall = 1;
             if (gnt == 0) break; // If gnt is 0, stall
 
-            if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared do stay Idle
+            if (hit_type == kWrHitShared) //If gnt == 1 and hit is shared stay Idle
             {
+                if (progress_clk)
+                {
+                    (*total_whit)++;
+                }
                 mem_rsp.stall = 0;
                 next_cache_state = kIdle;
                 break;
@@ -127,18 +163,44 @@ mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opco
 				{
                     perror("Halt arrived mid transaction!\n\n");
 				}
-                if (bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC != addr & 0xFFFFFFFC)
+                if (((bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC) != (addr & 0xFFFFFFFC)) && (hit_type != kModifiedMiss))
                 {
-                    printf("Data is received from wrong address\n");
+                    printf("Data is received from wrong address: %d and should come from: %d on hit type: %d\n",bus_routine_rsp.bus_cmd.bus_addr & 0xFFFFFFFC,addr & 0xFFFFFFFC,hit_type);
                 }
-                next_cache_state = kIdle;
+                next_cache_state = kCompleteReq;
             }
 
             break;
 
-        case kStop:
+        case kCompleteReq:
             mem_rsp.stall = 0;
-			break;
+            next_cache_state = kIdle;
+            if (op != sw && op != lw)
+            {
+                printf("Error - non memory operation in the end of transaction\n");
+            } // If not a memory operation do nothing
+            if (hit_type == kHit || op == halt)
+            {
+                next_cache_state = kIdle;
+                break; // If hit or no req do nothing
+            }
+            // If gnt is 0, stall
+            if (gnt == 0)
+            {
+                mem_rsp.stall = 1;
+                next_cache_state = kWaitForGnt;
+                break;
+            }
+
+            if (hit_type == kWrHitShared) break; //If gnt == 1 and hit is shared go Idle
+
+            else // If gnt == 1 and miss, wait for flush or send
+            {
+                mem_rsp.stall = 1;
+                next_cache_state = kWaitForFlush;
+                break;
+            }
+            break;
     }
 
     if (progress_clk == 1) *cache_state = next_cache_state;
@@ -154,20 +216,16 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     static int core_send_counter[NUM_CORES]    = {0};
     static int core_receive_counter[NUM_CORES] = {0};
 
-    static int offset[NUM_CORES];
-    static int index[NUM_CORES];
-    static int tag[NUM_CORES];
-    static int bus_addr[NUM_CORES];
+    static unsigned int offset[NUM_CORES];
+    static unsigned int index[NUM_CORES];
+    static unsigned int tag[NUM_CORES];
+    static unsigned int bus_addr[NUM_CORES];
+    static unsigned int bus_shared[NUM_CORES];
     static tsram_entry* entry[NUM_CORES] = { 0 };
     static core_state_t next_state[NUM_CORES] = { Idle };
     static mesi_state_t entry_state[NUM_CORES];
 
     int flush_done = 0; // Raise signal when flush is done
-
-    // need to handle address
-    // need to handle synchronization
-    // check for Send and receive done flags
-    // wrap procedure as a function
 
     // Bus routine
 	int receive_done = 0;
@@ -200,13 +258,21 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     						next_state[core_id] = Send ;
     					}
     				}
+                    if (bus.bus_cmd == kFlush)
+                    {
+                        bus.bus_share = 1;
+                        entry_state[core_id] = Shared;
+                    }
     				if (bus.bus_cmd == kBusRd) //set shared wire
     				{
-    					bus.bus_share = 1 ;
+    					//bus.bus_share = 1 ;
+                        bus_shared[core_id]  = 1;
     					entry_state[core_id] = Shared  ; // If command is kBusRd-change state to shared  - from all states(exclusive, modified or shared)
     				}
-    				else if (bus.bus_cmd == kBusRdX)
+    				if (bus.bus_cmd == kBusRdX)
     				{
+						//bus.bus_share = 0;
+                        bus_shared[core_id] = 0;
     					entry_state[core_id] = Invalid ; // If BusRdX change to Invalid  - from all states(exclusive, modified or shared)
     				}
     				if(progress_clock == 1) // change core state and entry[core_id] state on next clock cycle
@@ -223,18 +289,20 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
                 bus.bus_share  = 0;
                 bus.bus_data   = 0;
                 bus.bus_addr   = 0;
+                bus.only_invalidate = 0;
     			if(core_req_trans == 1)
     			{
                     bus.bus_addr = addr;
                     bus_addr[core_id] = bus.bus_addr & 0xFFFFFFFC; // save a copy of the aligned trans address
     				// Split bus address to tsram and dsram parameters
     				offset[core_id] = parse_addr(bus.bus_addr).offset;
-    				index[core_id] = parse_addr(bus.bus_addr).set;
-    				tag[core_id] = parse_addr(bus.bus_addr).tag;
+    				index[core_id]  = parse_addr(bus.bus_addr).set;
+    				tag[core_id]    = parse_addr(bus.bus_addr).tag;
     				entry[core_id] = &tsram[index[core_id]];
     				entry_state[core_id] = entry[core_id]->state;
                     next_state[core_id] = Idle;
 					int update_mem = dsram[index[core_id]][offset[core_id]];
+                    bus_shared[core_id] = 0;
 
     				if(hit_type == kRdMiss)  // If read miss - set bus_cmd to BusRd
     				{
@@ -252,19 +320,25 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     					bus.bus_cmd = kBusRdX;
     					entry_state[core_id] = Modified;
     					update_mem = data;
+                        bus.only_invalidate = 1;
     				}
 
                     else if (hit_type == kModifiedMiss) // If cache writeMiss modified data - set bus_cmd to flush
     				{
     					bus.bus_cmd = kFlush;
     					bus.bus_data = dsram[index[core_id]][0];
-    					next_state[core_id] = Send;
+                        tag[core_id] = entry[core_id]->tag;
+                        next_state[core_id] = Send;
+                        bus_addr[core_id] = compose_addr(entry[core_id]->tag, index[core_id], 0);
+                        bus.bus_addr = bus_addr[core_id];
     					core_send_counter[core_id] = 1;
+                        entry_state[core_id] = Shared;
+                        bus_shared[core_id] = 0;
     				}
 
     				if(progress_clock == 1)
     				{
-    					entry[core_id]->state = entry_state[core_id];
+    					entry[core_id]->state = hit_type == kModifiedMiss ? Modified : entry_state[core_id];
     					*core_state = next_state[core_id];
     					entry[core_id]->tag = tag[core_id];
     					dsram[index[core_id]][offset[core_id]] = update_mem;
@@ -286,7 +360,10 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
 
     		next_state[core_id] = WaitForFlush;
             cache_addr_s incoming_addr = parse_addr(bus.bus_addr);
-    		if(bus.bus_cmd == kFlush)
+
+            if(progress_clock == 0) break;
+
+            if(bus.bus_cmd == kFlush)
     		{
     			if(bus.bus_addr != (addr & 0xFFFFFFFC))
     			{
@@ -294,12 +371,12 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     			}
     			next_state[core_id] = Receive;
     			core_receive_counter[core_id] = 1;
-    		}
-    		if(progress_clock == 1)
-    		{
-    			*core_state = next_state[core_id];
                 dsram[incoming_addr.set][incoming_addr.offset] = bus.bus_data;
     		}
+
+
+    		*core_state = next_state[core_id];
+
     		break;
 
     	case Send:
@@ -310,6 +387,8 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     		bus.bus_cmd = kFlush;
     		bus.bus_data = dsram[index[core_id]][core_send_counter[core_id]];
     		bus.bus_addr = bus_addr[core_id] + core_send_counter[core_id];
+            bus.bus_share = bus_shared[core_id];
+
     		if(progress_clock == 1)
     		{
     			if(core_send_counter[core_id] == BLOCK_SIZE -1)
@@ -317,7 +396,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				core_send_counter[core_id] = 0;
     				*core_state = Idle;
     				flush_done = 1;
-    				entry[core_id]->state = Shared;
+    				entry[core_id]->state = entry_state[core_id];
     				break;
     			}
     			else
@@ -335,14 +414,20 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
             {
                 printf("The expected aligned addr is %d and the saved aligned addr is %d\n", addr & 0xFFFFFFFC, bus_addr[core_id]); // Sanity check
             }
+
+            if ((bus.bus_addr & 0x3) != core_receive_counter[core_id])
+            {
+                printf("Mismatch in the offest of the received data, offset: %d expected %d\n", bus.bus_addr & 0x3, core_receive_counter[core_id]);
+            }
             if (bus.bus_addr == ((addr & 0xFFFFFFFC) + core_receive_counter[core_id]))
     		{
                 if (progress_clock == 0) break;
 
-    			dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
+    		    dsram[index[core_id]][core_receive_counter[core_id]] = bus.bus_data;
 
     			if(core_receive_counter[core_id] == BLOCK_SIZE -1)
     			{
+
     				if(bus.bus_share == 0)
     				{
     					entry[core_id]->state = Exclusive; // If no other cache asserts shared ,set entry_state[core_id] to exclusive
@@ -356,6 +441,7 @@ bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_c
     				*core_state = Idle;
     				break;
     			}
+                if (progress_clock == 0) break;
                 core_receive_counter[core_id]++;
 
     		}
@@ -385,33 +471,6 @@ int get_signed_imm(const int imm) {
 	// If the sign bit is not set, return the immediate value as it is
 	int signed_imm = 0x00000FFF & imm;
 	return signed_imm;
-
-
-
-
-
-
-
-	//char imm_hex[6];
-	//sprintf_s(imm_hex, sizeof(imm_hex), "%05X", imm); // Cast the unsigned decimal to hex
-
-
-	//long int  decimal_imm;
-	//const int bit_width = mem_bit_width;
-
-	// Convert the hex string to a long int assuming it's a signed number in 2's complement
-	//decimal_imm = strtol(imm_hex, NULL, 16);
-
-	// Define the sign bit position
-	//long int sign_bit_mask = 1L << (bit_width - 1); // 2^19
-
-	// Check if the sign bit is set (if the number is negative in 2's complement)
-	//if (decimal_imm & sign_bit_mask) {
-	//	 If the sign bit is set, convert to negative by subtracting 2^bit_width
-	//	decimal_imm -= (1L << bit_width);
-	//}
-
-	//return decimal_imm;
 };
 
 int execute_op(const instrc instrc, int registers[])
@@ -494,12 +553,18 @@ instrc decode_line(const int line_dec, int registers[], int pc) {
 	return  new_instrc;
 }
 
-void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
-    char file_name[20];
-    snprintf(file_name, sizeof(file_name), "regout%d.txt", core_id);
-
+void store_regs_to_file(int core_id, int regs[NUM_OF_REGS],const char *output_files[]) {
+    char file_name[100];
+	snprintf(file_name, sizeof(file_name), "%s", output_files[1 + core_id]);
+    printf("Storing core#%d regs  to %s\n", core_id, file_name);
     FILE *file;
-    fopen_s(&file, file_name, "w");
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+	#else
+		if (fopen_s(&file, file_name, "w") != 0) {
+			file = NULL;
+		}
+	#endif
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -512,12 +577,16 @@ void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]) {
     fclose(file);
 }
 
-void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall) {
-    char file_name[20];
-    snprintf(file_name, sizeof(file_name), "stats%d.txt", core_id);
-
+void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall, const char *output_files[]) {
+    char file_name[100];
+	snprintf(file_name, sizeof(file_name), "%s", output_files[18 + core_id]);
+    printf("Storing core#%d stats to %s\n", core_id, file_name);
     FILE* file;
-    fopen_s(&file, file_name, "w");
+	#ifdef LINUX_MODE
+		file = fopen(file_name, "w");
+	#else
+		fopen_s(&file, file_name, "w");
+	#endif
     if (file == NULL) {
         fprintf(stderr, "Error opening file %s for writing\n", file_name);
         exit(1);
@@ -563,16 +632,16 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
 	fprintf(file, "%s ", fetch == -1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", decode.pc);
-	fprintf(file, "%s ", (decode.opcode == stall & decode.pc == fetch) || decode.opcode == halt || clk < 1 ? "---" : buffer);
+	fprintf(file, "%s ", ((decode.opcode == stall) && (decode.pc == fetch)) || decode.pc < 0 || clk < 1 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", exec.pc);
-	fprintf(file, "%s ", (exec.opcode == stall & exec.pc == decode.pc) || exec.opcode == halt || clk < 2 ? "---" : buffer);
+	fprintf(file, "%s ", ((exec.opcode == stall) && (exec.pc == decode.pc)) || exec.pc < 0 || clk < 2 ? "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", mem.pc);
-	fprintf(file, "%s ", (mem.opcode == stall & mem.pc == exec.pc) || mem.opcode == halt || clk < 3 ?  "---" : buffer);
+	fprintf(file, "%s ", ((mem.opcode == stall) && (mem.pc == exec.pc)) || mem.pc < 0 || clk < 3 ?  "---" : buffer);
 
 	snprintf(buffer, sizeof(buffer), "%03X", wb.pc);
-	fprintf(file, "%s ", (wb.opcode == stall & wb.pc == mem.pc) || wb.opcode == halt ||  clk < 4 ? "---" : buffer);
+	fprintf(file, "%s ", ((wb.opcode == stall) && (wb.pc == mem.pc)) || wb.pc < 0 ||  clk < 4 ? "---" : buffer);
     for (int i = 2; i < 16; i++) {
         fprintf(file, "%08X ", registers[i]);
     }
@@ -580,7 +649,7 @@ void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exe
     fprintf(file, "\n");
 }
 
-FILE** create_trace_files() {
+FILE** create_trace_files(const char *output_files[]) {
     FILE** files = malloc(NUM_CORES * sizeof(FILE*));
     if (files == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
@@ -588,14 +657,23 @@ FILE** create_trace_files() {
     }
 
     for (int i = 0; i < NUM_CORES; i++) {
-        char file_name[20];
-        snprintf(file_name, sizeof(file_name), "core%dtrace.txt", i);
+        char file_name[100];
+		snprintf(file_name, sizeof(file_name), "%s", output_files[5 + i]);
 
-        fopen_s(&files[i], file_name, "w");
-        if (files[i] == NULL) {
-            fprintf(stderr, "Error opening file %s for writing\n", file_name);
-            exit(1);
-        }
+
+		#ifdef LINUX_MODE
+			files[i] = fopen(file_name, "w");
+			if (files[i] == NULL) {
+				fprintf(stderr, "Error opening file %s for writing\n", file_name);
+				exit(1);
+			}
+		#else
+			fopen_s(&files[i], file_name, "w");
+			if (files[i] == NULL) {
+				fprintf(stderr, "Error opening file %s for writing\n", file_name);
+				exit(1);
+			}
+		#endif
     }
 
     return files;

@@ -1,3 +1,8 @@
+<<<<<<< HEAD
 ﻿  sim_source.c
 C:\Users\mgk27\source\repos\arch-project1\arch project\arch project\sim_source.c(229,19): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
   arch project.vcxproj -> C:\Users\mgk27\source\repos\arch-project1\arch project\x64\Debug\arch project.exe
+=======
+﻿  core_source.c
+  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Debug\arch project.exe
+>>>>>>> 7321b07b60630dcc6b5639be50190a848cb01fdd

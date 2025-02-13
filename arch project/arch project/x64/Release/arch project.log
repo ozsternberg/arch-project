@@ -1,0 +1,10 @@
+﻿  core.c
+  core_source.c
+  main.c
+  sim_source.c
+  Generating code
+  1 of 32 functions ( 3.1%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  arch project.vcxproj -> C:\Users\Oz\source\repos\arch-project\arch project\x64\Release\arch project.exe

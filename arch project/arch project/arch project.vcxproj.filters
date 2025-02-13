@@ -32,9 +32,6 @@
     <ClCompile Include="sim_source.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sim.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="core.c">
       <Filter>Source Files</Filter>
     </ClCompile>

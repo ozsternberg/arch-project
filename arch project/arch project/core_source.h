@@ -83,7 +83,7 @@ typedef enum
 } core_state_t;
 
 cache_query_rsp_s cache_query(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data,int progress_clk);
-mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr,opcode_t op, int data, int progress_clk,  cache_state_t * cache_state, core_state_t * core_state,bus_cmd_s bus, int gnt, int core_id);
+mem_rsp_s handle_mem(int dsram[][BLOCK_SIZE], tsram_entry tsram[], int addr, opcode_t op, int data, int progress_clk, cache_state_t* cache_state, core_state_t* core_state, bus_cmd_s bus, int gnt, int core_id, int* total_whit, int* total_wmis, int* total_rhit, int* total_rmis);
 bus_routine_rsp_s bus_routine(int dsram[][BLOCK_SIZE], tsram_entry tsram[],bus_cmd_s bus, int progress_clock, int gnt, core_state_t * core_state, int core_id, int core_req_trans, int addr, int data, cache_hit_t hit_type);
 
 
@@ -91,7 +91,9 @@ int get_signed_imm(const int imm);
 int execute_op(const instrc instrc, int registers[]);
 instrc decode_line(const int line_dec, int registers[], int pc);
 
-void store_regs_to_file(int core_id, int regs[NUM_OF_REGS]);
+void store_regs_to_file(int core_id, int regs[NUM_OF_REGS],const char *output_files[]);
+
+void store_stats_to_file(int core_id, int clk, int instc, int rhit, int whit, int rmis, int wmis, int dec_stall, int mem_stall,const char *output_files[]);
 
 void progress_reg(register_line_s *reg);
 
@@ -103,63 +105,6 @@ int get_reg_val(int reg, int registers[], int imm);
 
 void append_trace_line(FILE *file, int clk, int fetch, instrc decode, instrc exec, instrc mem, instrc wb, int registers[NUM_OF_REGS]);
 
-FILE **create_trace_files();
+FILE **create_trace_files(const char *output_files[]);
 
 #endif
-//==========================================================================
-// all below are old and should be removed
-//==========================================================================
-/*
-const char* get_io_register_name(int reg_number);
-
-// Function for getting the signed value of imm in 32 bit
-
-
-
-int perform_op(const instrc instrc, int registers[], int mem[], int hw_registers[], int* pc, int* in_irq, bool debug_on);
-
-instrc create_instrc(int line_dec);
-
-//==========================================================================
-// Functions for IO purposes
-//==========================================================================
-
-// Function for updating the monitor
-void update_mon(int frame_buffer[][monitor_pixel_width], const int pixel_value, const int monitoraddr);
-
-// Function that handles memory transfer between mem and disk
-void transfer_data(int mem[], int disk[], const int write, const int sector_offset, const int mem_addr);
-
-
-//==========================================================================
-// Function for handling output/input files
-//==========================================================================
-
-// Function for loading a file
-int load_file_into_array(const char* filename, int array[], const int max_lines, const int is_hex);
-
-
-void create_trace_line(const int mem[], const int pc, const int registers[], FILE* file_pntr);
-
-void create_hwtrace_line(const unsigned int clk, const instrc instrc, const int registers[], FILE* hwregtrace_pntr);
-
-int create_leds_line(const unsigned int clk, const int leds, const int previous_leds, FILE* log_file);
-
-void write_to_file(const int text[], FILE* file_pntr, size_t size);
-
-void write_to_monitor(const int frame_buffer[][monitor_pixel_width], FILE* file_pntr, bool binary_format);
-
-FILE* open_file(const char* filename, const char* mode);
-
-
-void write_reg(int registers[], FILE* regout_pntr);
-
-
-//==========================================================================
-// Function for handling MESI protocol
-//==========================================================================
-void trans_passive(bus_cmd_s);
-
-
-
-*/
