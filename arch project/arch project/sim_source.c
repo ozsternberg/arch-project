@@ -19,7 +19,7 @@ cache_addr_s parse_addr(int addr)
 // Round robin arbitrator implementation
 int round_robin_arbitrator()
 {
-	static int curr = 0; //NOTE: This sets the first core to be core0, might need to change this for the first core that initiate a bus transaction
+	static int curr = 1; //NOTE: This sets the first core to be core0, might need to change this for the first core that initiate a bus transaction
 	int curr_r = curr;
 	if (curr == 3) curr = 0; //Wrap
 	else curr++;
