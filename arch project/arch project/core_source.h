@@ -7,7 +7,7 @@
 
 #include "sim_source.h"
 
-#define ALLOW_EMPTY_ARGUMENTS
+//#define ALLOW_EMPTY_ARGUMENTS
 
 //#ifndef DEBUG_ON
 //#define DEBUG_ON

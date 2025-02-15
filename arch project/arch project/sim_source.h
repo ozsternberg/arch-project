@@ -20,7 +20,7 @@
 //=============================================================================
 #define OPTIMIZATION_ON
 //#define RR_OPT
-#define ALLOW_PARTIAL_ARGUMENTS
+//#define ALLOW_PARTIAL_ARGUMENTS
 //#define DEBUG_ON
 // #ifndef LINUX_MODE
 // #define LINUX_MODE
